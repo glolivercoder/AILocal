@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Development Command Assistant</title>
+    <!-- Tailwind via CDN for simplicity -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#e6f1fe',
+                            100: '#cce3fd',
+                            200: '#99c7fb',
+                            300: '#66abf9',
+                            400: '#338ff7',
+                            500: '#006fe5',
+                            600: '#0059b8',
+                            700: '#00448a',
+                            800: '#002e5c',
+                            900: '#00172e',
+                        },
+                        dark: {
+                            800: '#1e1e2e',
+                            900: '#13131e',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .terminal {
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            background-color: #1a1a2e;
+            color: #e2e2e2;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+        .terminal-prompt:before {
+            content: "$ ";
+            color: #00b4d8;
+        }
+        .terminal-output {
+            color: #efefef;
+            padding-left: 1rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .technology-badge {
+            transition: all 0.3s ease;
+        }
+        .technology-badge:hover {
+            transform: translateY(-5px);
+        }
+        .voice-pulse {
+            animation: voice-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes voice-pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.1);
+            }
+        }
+        .doc-available {
+            box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.5);
+        }
+        
+        /* OpenRouter Model Selector Styles */
+        #openrouter-model-selector {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #openrouter-model-selector option {
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 4px;
+        }
+        #openrouter-model-selector option:hover {
+            background-color: rgba(59, 130, 246, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-dark-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 inline-block text-transparent bg-clip-text">
+                AI Development Command Assistant
+            </h1>
+            <p class="text-gray-400 mt-2">Your AI agent for Flutter, Python, GitHub, Docker, Node.js, JavaScript, and Java commands</p>
+        </header>
+
+        <div class="grid md:grid-cols-4 gap-6">
+            <!-- Left sidebar -->
+            <div class="md:col-span-1">
+                <div class="bg-dark-800 rounded-xl p-4 shadow-lg border border-gray-700 mb-6">
+                    <h2 class="text-lg font-semibold mb-4 text-cyan-400">Technologies</h2>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="technology-badge bg-blue-900/30 rounded-lg p-3 text-center hover:bg-blue-800/50 cursor-pointer" data-tech="flutter">
+                            <i class="fab fa-flutter text-2xl text-blue-400 mb-2"></i>
+                            <div class="text-sm">Flutter</div>
+                        </div>
+                        <div class="technology-badge bg-blue-900/30 rounded-lg p-3 text-center hover:bg-blue-800/50 cursor-pointer" data-tech="python">
+                            <i class="fab fa-python text-2xl text-blue-400 mb-2"></i>
+                            <div class="text-sm">Python</div>
+                        </div>
+                        <div class="technology-badge bg-blue-900/30 rounded-lg p-3 text-center hover:bg-blue-800/50 cursor-pointer" data-tech="github">
+                            <i class="fab fa-github text-2xl text-blue-400 mb-2"></i>
+                            <div class="text-sm">GitHub</div>
+                        </div>
+                        <div class="technology-badge bg-blue-900/30 rounded-lg p-3 text-center hover:bg-blue-800/50 cursor-pointer" data-tech="docker">
+                            <i class="fab fa-docker text-2xl text-blue-400 mb-2"></i>
+                            <div class="text-sm">Docker</div>
+                        </div>
+                        <div class="technology-badge bg-blue-900/30 rounded-lg p-3 text-center hover:bg-blue-800/50 cursor-pointer" data-tech="nodejs">
+                            <i class="fab fa-node-js text-2xl text-blue-400 mb-2"></i>
+                            <div class="text-sm">Node.js</div>
+                        </div>
+                        <div class="technology-badge bg-blue-900/30 rounded-lg p-3 text-center hover:bg-blue-800/50 cursor-pointer" data-tech="javascript">
+                            <i class="fab fa-js text-2xl text-blue-400 mb-2"></i>
+                            <div class="text-sm">JavaScript</div>
+                        </div>
+                        <div class="technology-badge bg-blue-900/30 rounded-lg p-3 text-center hover:bg-blue-800/50 cursor-pointer" data-tech="java">
+                            <i class="fab fa-java text-2xl text-blue-400 mb-2"></i>
+                            <div class="text-sm">Java</div>
+                        </div>
+                        <div class="technology-badge bg-blue-900/30 rounded-lg p-3 text-center hover:bg-blue-800/50 cursor-pointer" data-tech="all">
+                            <i class="fas fa-code text-2xl text-blue-400 mb-2"></i>
+                            <div class="text-sm">All</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-dark-800 rounded-xl p-4 shadow-lg border border-gray-700 mb-6">
+                    <h2 class="text-lg font-semibold mb-4 text-cyan-400">Settings</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-gray-300 mb-2">Model</label>
+                            <select id="model-selector" class="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-2 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="gemma2:7b">Gemma 2 (7B)</option>
+                                <option value="codellama:7b">CodeLlama (7B)</option>
+                                <option value="llama3:8b">Llama 3 (8B)</option>
+                                <option value="openai">OpenAI API</option>
+                                <option value="gemini">Gemini API</option>
+                                <option value="openrouter">OpenRouter API</option>
+                                <option value="deepseek">DeepSeek API</option>
+                            </select>
+                        </div>
+                        
+                        <div id="openrouter-models-container" class="hidden">
+                            <label class="block text-gray-300 mb-2">OpenRouter Model</label>
+                            
+                            <div class="mb-2">
+                                <input type="text" id="openrouter-model-search" class="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-2 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                    placeholder="Search models...">
+                                <p class="text-xs text-gray-500 mt-1">Search is case-insensitive. Type to filter models by name or ID.</p>
+                            </div>
+                            
+                            <select id="openrouter-model-selector" class="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-2 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" size="6">
+                                <!-- Anthropic Models -->
+                                <option value="anthropic/claude-3-opus-20240229">Anthropic: Claude 3 Opus</option>
+                                <option value="anthropic/claude-3-sonnet-20240229">Anthropic: Claude 3 Sonnet</option>
+                                <option value="anthropic/claude-3-haiku-20240307">Anthropic: Claude 3 Haiku</option>
+                                <option value="anthropic/claude-2.1">Anthropic: Claude 2.1</option>
+                                <option value="anthropic/claude-2.0">Anthropic: Claude 2.0</option>
+                                <option value="anthropic/claude-instant-1.2">Anthropic: Claude Instant 1.2</option>
+                                
+                                <!-- OpenAI Models -->
+                                <option value="openai/gpt-4o">OpenAI: GPT-4o</option>
+                                <option value="openai/gpt-4-turbo">OpenAI: GPT-4 Turbo</option>
+                                <option value="openai/gpt-4-turbo-preview">OpenAI: GPT-4 Turbo Preview</option>
+                                <option value="openai/gpt-4-vision-preview">OpenAI: GPT-4 Vision</option>
+                                <option value="openai/gpt-4">OpenAI: GPT-4</option>
+                                <option value="openai/gpt-3.5-turbo">OpenAI: GPT-3.5 Turbo</option>
+                                <option value="openai/gpt-3.5-turbo-16k">OpenAI: GPT-3.5 Turbo 16K</option>
+                                
+                                <!-- Meta/Llama Models -->
+                                <option value="meta-llama/llama-3-70b-instruct">Meta: Llama 3 70B</option>
+                                <option value="meta-llama/llama-3-8b-instruct">Meta: Llama 3 8B</option>
+                                <option value="meta-llama/llama-2-70b-chat">Meta: Llama 2 70B</option>
+                                <option value="meta-llama/llama-2-13b-chat">Meta: Llama 2 13B</option>
+                                <option value="meta-llama/llama-2-7b-chat">Meta: Llama 2 7B</option>
+                                
+                                <!-- Google Models -->
+                                <option value="google/gemini-1.5-pro-latest">Google: Gemini 1.5 Pro</option>
+                                <option value="google/gemini-pro-vision">Google: Gemini Pro Vision</option>
+                                <option value="google/gemini-pro">Google: Gemini Pro</option>
+                                <option value="google/palm-2-chat-bison">Google: PaLM 2 Chat</option>
+                                
+                                <!-- Mistral Models -->
+                                <option value="mistralai/mistral-large-latest">Mistral: Mistral Large</option>
+                                <option value="mistralai/mistral-medium-latest">Mistral: Mistral Medium</option>
+                                <option value="mistralai/mistral-small-latest">Mistral: Mistral Small</option>
+                                <option value="mistralai/mixtral-8x7b-instruct">Mistral: Mixtral 8x7B</option>
+                                <option value="mistralai/mistral-7b-instruct">Mistral: Mistral 7B</option>
+                                
+                                <!-- Cohere Models -->
+                                <option value="cohere/command-r">Cohere: Command R</option>
+                                <option value="cohere/command-r-plus">Cohere: Command R+</option>
+                                <option value="cohere/command-light">Cohere: Command Light</option>
+                                
+                                <!-- Other Models -->
+                                <option value="databricks/dbrx-instruct">Databricks: DBRX</option>
+                                <option value="perplexity/sonar-medium-online">Perplexity: Sonar Medium</option>
+                                <option value="perplexity/sonar-small-online">Perplexity: Sonar Small</option>
+                                <option value="meta-llama/codellama-34b-instruct">Meta: CodeLlama 34B</option>
+                                <option value="meta-llama/codellama-70b-instruct">Meta: CodeLlama 70B</option>
+                                <option value="meta-llama/codellama-13b-instruct">Meta: CodeLlama 13B</option>
+                                <option value="phind/phind-codellama-34b">Phind: CodeLlama 34B</option>
+                                <option value="openchat/openchat-3.5">OpenChat: OpenChat 3.5</option>
+                                <option value="ai21labs/jamba-instruct">AI21: Jamba Instruct</option>
+                                <option value="anthropic/claude-instant-1">Anthropic: Claude Instant 1</option>
+                                <option value="rwkv/rwkv-5-world-3b">RWKV: RWKV-5 World 3B</option>
+                                <option value="gryphe/mythomist-7b">Gryphe: MythoMist 7B</option>
+                                <option value="nousresearch/nous-hermes-2-vision">Nous: Hermes 2 Vision</option>
+                                <option value="nousresearch/nous-hermes-2-mixtral-8x7b-dpo">Nous: Hermes 2 Mixtral</option>
+                                <option value="nousresearch/nous-hermes-llama2-13b">Nous: Hermes Llama2 13B</option>
+                                <option value="mancer/weaver">Mancer: Weaver</option>
+                                <option value="aleph-alpha/luminous-supreme">Aleph Alpha: Luminous Supreme</option>
+                                <option value="aleph-alpha/luminous-base">Aleph Alpha: Luminous Base</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="execute-commands" class="form-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-500">
+                            <label for="execute-commands" class="text-gray-300">Execute commands (use with caution)</label>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="use-docs" class="form-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-500" checked>
+                            <label for="use-docs" class="text-gray-300">Use local documentation</label>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="use-web" class="form-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-500">
+                            <label for="use-web" class="text-gray-300">Use web search</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-dark-800 rounded-xl p-4 shadow-lg border border-gray-700">
+                    <h2 class="text-lg font-semibold mb-4 text-cyan-400">Documentation</h2>
+                    <div id="docs-status" class="mb-4 text-xs text-gray-400">
+                        Checking documentation status...
+                    </div>
+                    <div class="space-y-2">
+                        <button id="download-all-docs" class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-300 text-white text-sm">
+                            <i class="fas fa-download mr-1"></i> Download All Docs
+                        </button>
+                        
+                        <div class="text-xs text-gray-500 mt-1 italic">
+                            Documentation is stored locally for better command generation.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main content -->
+            <div class="md:col-span-3 space-y-6">
+                <!-- Command input -->
+                <div class="bg-dark-800 rounded-xl p-5 shadow-lg border border-gray-700">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-semibold text-cyan-400">Command Input</h2>
+                        <div class="flex space-x-2">
+                            <span id="selected-tech" class="hidden px-3 py-1 bg-blue-600 text-white text-sm rounded-full">
+                                <i class="fas fa-code mr-1"></i> <span id="tech-name">All</span>
+                            </span>
+                            <button id="mic-button" class="p-2 bg-blue-600 hover:bg-blue-700 rounded-full text-white focus:outline-none">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        <input type="text" id="command-input" class="flex-1 bg-dark-900 border border-gray-700 rounded-lg px-4 py-3 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                            placeholder="Type or speak your command (e.g., 'create a new Flutter project called myapp')">
+                        <button id="send-button" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white focus:outline-none">
+                            <i class="fas fa-paper-plane mr-1"></i> Send
+                        </button>
+                    </div>
+                    
+                    <div id="voice-indicator" class="hidden mt-4 text-center">
+                        <div class="inline-flex items-center space-x-3 px-4 py-2 bg-blue-900/50 rounded-full">
+                            <div class="voice-pulse w-3 h-3 bg-red-500 rounded-full"></div>
+                            <span class="text-sm text-gray-300">Listening...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Command results -->
+                <div class="bg-dark-800 rounded-xl p-5 shadow-lg border border-gray-700">
+                    <h2 class="text-xl font-semibold mb-4 text-cyan-400">Command Results</h2>
+                    
+                    <div id="output-container" class="terminal h-64 md:h-80">
+                        <div class="terminal-welcome mb-2">Welcome to AI Development Command Assistant. How can I help you today?</div>
+                        <div id="terminal-content"></div>
+                    </div>
+                </div>
+                
+                <!-- Additional search/doc tools -->
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Web search -->
+                    <div class="bg-dark-800 rounded-xl p-5 shadow-lg border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-3 text-cyan-400">Web Search</h2>
+                        <div class="flex space-x-2 mb-2">
+                            <input type="text" id="web-search-input" class="flex-1 bg-dark-900 border border-gray-700 rounded-lg px-3 py-2 text-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                placeholder="Search the web for documentation...">
+                            <button id="web-search-button" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm focus:outline-none">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Doc search -->
+                    <div class="bg-dark-800 rounded-xl p-5 shadow-lg border border-gray-700">
+                        <h2 class="text-lg font-semibold mb-3 text-cyan-400">Doc Search</h2>
+                        <div class="flex space-x-2 mb-2">
+                            <input type="text" id="doc-search-input" class="flex-1 bg-dark-900 border border-gray-700 rounded-lg px-3 py-2 text-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                placeholder="Search local documentation...">
+                            <button id="doc-search-button" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm focus:outline-none">
+                                <i class="fas fa-book-open"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Command history -->
+                <div class="bg-dark-800 rounded-xl p-5 shadow-lg border border-gray-700">
+                    <h2 class="text-xl font-semibold mb-4 text-cyan-400">Command History</h2>
+                    
+                    <div id="history-container" class="space-y-3 max-h-64 overflow-y-auto">
+                        <!-- History items will be added dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- Documentation and web search script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Additional UI elements
+            const webSearchInput = document.getElementById('web-search-input');
+            const webSearchButton = document.getElementById('web-search-button');
+            const docSearchInput = document.getElementById('doc-search-input');
+            const docSearchButton = document.getElementById('doc-search-button');
+            const downloadAllDocsButton = document.getElementById('download-all-docs');
+            const docsStatusElement = document.getElementById('docs-status');
+            
+            // Web search functionality
+            webSearchButton.addEventListener('click', function() {
+                const query = webSearchInput.value.trim();
+                if (query) {
+                    // Call the performWebSearch function from main.js
+                    if (typeof performWebSearch === 'function') {
+                        performWebSearch(query);
+                    } else {
+                        // Fallback if function isn't available
+                        fetch('/api/web_search', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                query: query,
+                                num_results: 5
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Web search results:', data);
+                            // You would need to add these results to the terminal display
+                        })
+                        .catch(error => {
+                            console.error('Error searching web:', error);
+                        });
+                    }
+                    webSearchInput.value = '';
+                }
+            });
+            
+            // Document search functionality
+            docSearchButton.addEventListener('click', function() {
+                const query = docSearchInput.value.trim();
+                if (query) {
+                    // Get the selected technology
+                    const selectedTech = document.getElementById('tech-name').textContent.toLowerCase();
+                    
+                    // Call the searchDocs function from main.js
+                    if (typeof searchDocs === 'function') {
+                        searchDocs(selectedTech === 'all' ? 'python' : selectedTech, query);
+                    } else {
+                        // Fallback if function isn't available
+                        fetch('/api/docs/search', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                technology: selectedTech === 'all' ? 'python' : selectedTech,
+                                query: query,
+                                max_results: 5
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Doc search results:', data);
+                            // You would need to add these results to the terminal display
+                        })
+                        .catch(error => {
+                            console.error('Error searching docs:', error);
+                        });
+                    }
+                    docSearchInput.value = '';
+                }
+            });
+            
+            // Download all docs
+            downloadAllDocsButton.addEventListener('click', function() {
+                // Call the downloadDocs function from main.js
+                if (typeof downloadDocs === 'function') {
+                    downloadDocs();
+                } else {
+                    // Fallback if function isn't available
+                    fetch('/api/docs/download', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({})
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Doc download response:', data);
+                        if (data.message) {
+                            docsStatusElement.textContent = data.message;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error downloading docs:', error);
+                    });
+                }
+            });
+            
+            // Update documentation status indicator
+            function updateDocIndicators(docsStatus) {
+                if (!docsStatus) return;
+                
+                // Update the docs status display
+                let statusText = '';
+                let availableCount = 0;
+                
+                for (const [tech, available] of Object.entries(docsStatus)) {
+                    if (available) {
+                        availableCount++;
+                        // Also update the technology badge to show it has docs
+                        const badge = document.querySelector(`.technology-badge[data-tech="${tech}"]`);
+                        if (badge) {
+                            badge.classList.add('doc-available');
+                        }
+                    }
+                }
+                
+                if (availableCount === 0) {
+                    statusText = 'No documentation downloaded yet.';
+                } else if (availableCount === Object.keys(docsStatus).length) {
+                    statusText = 'All documentation downloaded!';
+                } else {
+                    statusText = `${availableCount}/${Object.keys(docsStatus).length} docs downloaded.`;
+                }
+                
+                docsStatusElement.textContent = statusText;
+            }
+            
+            // Make updateDocIndicators available globally
+            window.updateDocIndicators = updateDocIndicators;
+            
+            // Check status on load
+            fetch('/api/docs/status')
+                .then(response => response.json())
+                .then(data => {
+                    updateDocIndicators(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching docs status:', error);
+                    docsStatusElement.textContent = 'Error checking documentation status.';
+                });
+        });
+    </script>
+</body>
+</html> 
