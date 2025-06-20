@@ -5,7 +5,7 @@ Widget de Controle de Áudio - Microfone e Saída de Som
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QComboBox, QPushButton, QDialog, QSlider,
-                             QCheckBox, QGroupBox, QFrame, QSpinBox)
+                             QCheckBox, QGroupBox, QFrame, QSpinBox, QMessageBox)
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap, QIcon, QFont
 import json
@@ -39,7 +39,7 @@ class AudioControlDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("🎤 Configurações de Áudio")
-        self.setFixedSize(500, 400)
+        self.setFixedSize(800, 650)
         self.setModal(True)
         
         # Configurações atuais
@@ -60,24 +60,26 @@ class AudioControlDialog(QDialog):
     def init_ui(self):
         """Inicializa interface"""
         layout = QVBoxLayout(self)
+        layout.setSpacing(15)
         
-        # Cabeçalho
+        # Cabeçalho com ícone maior
         header_layout = QHBoxLayout()
         
-        # Ícone do microfone
+        # Ícone do microfone maior
         mic_label = QLabel()
         if os.path.exists('static/icons/microphone_active.png'):
             pixmap = QPixmap('static/icons/microphone_active.png')
-            mic_label.setPixmap(pixmap.scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            mic_label.setPixmap(pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
             mic_label.setText("🎤")
-            mic_label.setStyleSheet("font-size: 32px;")
+            mic_label.setStyleSheet("font-size: 48px;")
         
         title_label = QLabel("Configurações de Áudio")
         title_font = QFont()
-        title_font.setPointSize(16)
+        title_font.setPointSize(20)
         title_font.setBold(True)
         title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #00ff7f; margin-bottom: 10px;")
         
         header_layout.addWidget(mic_label)
         header_layout.addWidget(title_label)
@@ -85,82 +87,243 @@ class AudioControlDialog(QDialog):
         
         layout.addLayout(header_layout)
         
-        # Status das bibliotecas
-        status_group = QGroupBox("Status das Dependências")
+        # Status das bibliotecas com melhor formatação
+        status_group = QGroupBox("📊 Status das Dependências")
+        status_group.setStyleSheet("""
+            QGroupBox {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 15px;
+                margin-top: 10px;
+            }
+        """)
         status_layout = QVBoxLayout(status_group)
+        status_layout.setSpacing(8)
         
-        pyaudio_status = "✅ Disponível" if PYAUDIO_AVAILABLE else "❌ Não instalado (pip install pyaudio)"
-        pyttsx3_status = "✅ Disponível" if PYTTSX3_AVAILABLE else "❌ Não instalado (pip install pyttsx3)"
-        sr_status = "✅ Disponível" if SPEECH_RECOGNITION_AVAILABLE else "❌ Não instalado (pip install SpeechRecognition)"
+        # Criar labels com melhor formatação
+        pyaudio_status = "✅ PyAudio: Disponível" if PYAUDIO_AVAILABLE else "❌ PyAudio: Não instalado (pip install pyaudio)"
+        pyttsx3_status = "✅ pyttsx3: Disponível" if PYTTSX3_AVAILABLE else "❌ pyttsx3: Não instalado (pip install pyttsx3)"
+        sr_status = "✅ SpeechRecognition: Disponível" if SPEECH_RECOGNITION_AVAILABLE else "❌ SpeechRecognition: Não instalado (pip install SpeechRecognition)"
         
-        status_layout.addWidget(QLabel(f"PyAudio: {pyaudio_status}"))
-        status_layout.addWidget(QLabel(f"pyttsx3: {pyttsx3_status}"))
-        status_layout.addWidget(QLabel(f"SpeechRecognition: {sr_status}"))
+        for status_text in [pyaudio_status, pyttsx3_status, sr_status]:
+            status_label = QLabel(status_text)
+            status_label.setStyleSheet("""
+                QLabel {
+                    font-size: 12px;
+                    padding: 5px;
+                    margin: 2px;
+                    background-color: #2d2d2d;
+                    border-radius: 4px;
+                }
+            """)
+            status_layout.addWidget(status_label)
         
         layout.addWidget(status_group)
         
-        # Configurações de entrada (microfone)
-        input_group = QGroupBox("Entrada de Áudio (Microfone)")
+        # Configurações de entrada (microfone) com melhor layout
+        input_group = QGroupBox("🎤 Entrada de Áudio (Microfone)")
+        input_group.setStyleSheet("""
+            QGroupBox {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 15px;
+                margin-top: 10px;
+            }
+        """)
         input_layout = QVBoxLayout(input_group)
+        input_layout.setSpacing(12)
         
-        # Habilitar microfone
-        self.mic_enabled_checkbox = QCheckBox("Habilitar comando de voz")
+        # Habilitar microfone com checkbox maior
+        self.mic_enabled_checkbox = QCheckBox("🎤 Habilitar comando de voz")
+        self.mic_enabled_checkbox.setStyleSheet("""
+            QCheckBox {
+                font-size: 13px;
+                font-weight: bold;
+                padding: 8px;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+            }
+        """)
         self.mic_enabled_checkbox.stateChanged.connect(self.on_mic_enabled_changed)
         input_layout.addWidget(self.mic_enabled_checkbox)
         
-        # Seleção de dispositivo de entrada
-        input_device_layout = QHBoxLayout()
-        input_device_layout.addWidget(QLabel("Dispositivo de entrada:"))
+        # Seleção de dispositivo de entrada com melhor layout
+        input_device_frame = QFrame()
+        input_device_frame.setStyleSheet("QFrame { background-color: #2d2d2d; border-radius: 6px; padding: 10px; }")
+        input_device_layout = QVBoxLayout(input_device_frame)
+        
+        input_device_label = QLabel("🎙️ Dispositivo de entrada:")
+        input_device_label.setStyleSheet("font-size: 12px; font-weight: bold; margin-bottom: 5px;")
+        input_device_layout.addWidget(input_device_label)
+        
         self.input_device_combo = QComboBox()
+        self.input_device_combo.setStyleSheet("""
+            QComboBox {
+                font-size: 11px;
+                padding: 8px;
+                min-height: 25px;
+            }
+        """)
         self.input_device_combo.currentTextChanged.connect(self.on_input_device_changed)
         input_device_layout.addWidget(self.input_device_combo)
-        input_layout.addLayout(input_device_layout)
+        
+        input_layout.addWidget(input_device_frame)
         
         # Ativação por voz
-        self.voice_activation_checkbox = QCheckBox("Ativação por palavra-chave")
+        self.voice_activation_checkbox = QCheckBox("🔊 Ativação por palavra-chave")
+        self.voice_activation_checkbox.setStyleSheet("""
+            QCheckBox {
+                font-size: 13px;
+                padding: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+            }
+        """)
         input_layout.addWidget(self.voice_activation_checkbox)
         
         layout.addWidget(input_group)
         
-        # Configurações de saída (alto-falantes)
-        output_group = QGroupBox("Saída de Áudio (Alto-falantes)")
+        # Configurações de saída (alto-falantes) com melhor layout
+        output_group = QGroupBox("🔊 Saída de Áudio (Alto-falantes)")
+        output_group.setStyleSheet("""
+            QGroupBox {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 15px;
+                margin-top: 10px;
+            }
+        """)
         output_layout = QVBoxLayout(output_group)
+        output_layout.setSpacing(12)
         
         # Habilitar sons do sistema
-        self.system_sounds_checkbox = QCheckBox("Habilitar sons do sistema")
+        self.system_sounds_checkbox = QCheckBox("🔊 Habilitar sons do sistema")
         self.system_sounds_checkbox.setChecked(True)
+        self.system_sounds_checkbox.setStyleSheet("""
+            QCheckBox {
+                font-size: 13px;
+                font-weight: bold;
+                padding: 8px;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+            }
+        """)
         output_layout.addWidget(self.system_sounds_checkbox)
         
-        # Seleção de dispositivo de saída
-        output_device_layout = QHBoxLayout()
-        output_device_layout.addWidget(QLabel("Dispositivo de saída:"))
+        # Seleção de dispositivo de saída com melhor layout
+        output_device_frame = QFrame()
+        output_device_frame.setStyleSheet("QFrame { background-color: #2d2d2d; border-radius: 6px; padding: 10px; }")
+        output_device_layout = QVBoxLayout(output_device_frame)
+        
+        output_device_label = QLabel("🔊 Dispositivo de saída:")
+        output_device_label.setStyleSheet("font-size: 12px; font-weight: bold; margin-bottom: 5px;")
+        output_device_layout.addWidget(output_device_label)
+        
         self.output_device_combo = QComboBox()
+        self.output_device_combo.setStyleSheet("""
+            QComboBox {
+                font-size: 11px;
+                padding: 8px;
+                min-height: 25px;
+            }
+        """)
         self.output_device_combo.currentTextChanged.connect(self.on_output_device_changed)
         output_device_layout.addWidget(self.output_device_combo)
-        output_layout.addLayout(output_device_layout)
         
-        # Volume
-        volume_layout = QHBoxLayout()
-        volume_layout.addWidget(QLabel("Volume:"))
+        output_layout.addWidget(output_device_frame)
+        
+        # Volume com slider maior e melhor formatação
+        volume_frame = QFrame()
+        volume_frame.setStyleSheet("QFrame { background-color: #2d2d2d; border-radius: 6px; padding: 10px; }")
+        volume_layout = QVBoxLayout(volume_frame)
+        
+        volume_label = QLabel("🎚️ Volume:")
+        volume_label.setStyleSheet("font-size: 12px; font-weight: bold; margin-bottom: 5px;")
+        volume_layout.addWidget(volume_label)
+        
+        volume_control_layout = QHBoxLayout()
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(50)
+        self.volume_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #404040;
+                height: 8px;
+                background: #1e1e1e;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #00ff7f;
+                border: 1px solid #00ff7f;
+                width: 18px;
+                margin: -5px 0;
+                border-radius: 9px;
+            }
+        """)
         self.volume_slider.valueChanged.connect(self.on_volume_changed)
+        
         self.volume_label = QLabel("50%")
-        volume_layout.addWidget(self.volume_slider)
-        volume_layout.addWidget(self.volume_label)
-        output_layout.addLayout(volume_layout)
+        self.volume_label.setStyleSheet("font-size: 12px; font-weight: bold; min-width: 40px;")
+        
+        volume_control_layout.addWidget(self.volume_slider)
+        volume_control_layout.addWidget(self.volume_label)
+        volume_layout.addLayout(volume_control_layout)
+        
+        output_layout.addWidget(volume_frame)
         
         layout.addWidget(output_group)
         
-        # Botões de teste
-        test_group = QGroupBox("Testes")
+        # Botões de teste com melhor layout
+        test_group = QGroupBox("🧪 Testes")
+        test_group.setStyleSheet("""
+            QGroupBox {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 15px;
+                margin-top: 10px;
+            }
+        """)
         test_layout = QHBoxLayout(test_group)
+        test_layout.setSpacing(15)
         
         test_mic_button = QPushButton("🎤 Testar Microfone")
+        test_mic_button.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                font-weight: bold;
+                padding: 12px 20px;
+                min-height: 35px;
+                background-color: #007acc;
+                border: none;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #005a9e;
+            }
+        """)
         test_mic_button.clicked.connect(self.test_microphone)
         
         test_speaker_button = QPushButton("🔊 Testar Alto-falante")
+        test_speaker_button.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                font-weight: bold;
+                padding: 12px 20px;
+                min-height: 35px;
+                background-color: #28a745;
+                border: none;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #1e7e34;
+            }
+        """)
         test_speaker_button.clicked.connect(self.test_speaker)
         
         test_layout.addWidget(test_mic_button)
@@ -168,16 +331,60 @@ class AudioControlDialog(QDialog):
         
         layout.addWidget(test_group)
         
-        # Botões principais
+        # Botões principais com melhor layout
         buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(15)
         
         install_button = QPushButton("📦 Instalar Dependências")
+        install_button.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                font-weight: bold;
+                padding: 12px 20px;
+                min-height: 35px;
+                background-color: #ffc107;
+                color: black;
+                border: none;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #e0a800;
+            }
+        """)
         install_button.clicked.connect(self.install_dependencies)
         
-        save_button = QPushButton("💾 Salvar")
+        save_button = QPushButton("💾 Salvar Configurações")
+        save_button.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                font-weight: bold;
+                padding: 12px 20px;
+                min-height: 35px;
+                background-color: #28a745;
+                border: none;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #1e7e34;
+            }
+        """)
         save_button.clicked.connect(self.save_settings)
         
         cancel_button = QPushButton("❌ Cancelar")
+        cancel_button.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                font-weight: bold;
+                padding: 12px 20px;
+                min-height: 35px;
+                background-color: #dc3545;
+                border: none;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #c82333;
+            }
+        """)
         cancel_button.clicked.connect(self.reject)
         
         buttons_layout.addWidget(install_button)
@@ -332,10 +539,82 @@ class AudioControlDialog(QDialog):
             self.show_message(f"❌ Erro ao salvar configurações: {e}")
     
     def show_message(self, message):
-        """Mostra mensagem temporária"""
-        # Por simplicidade, vamos usar print - em uma implementação real
-        # seria melhor usar um QMessageBox ou notificação
-        print(f"[Áudio] {message}")
+        """Mostra mensagem em dialog visível"""
+        # Determinar tipo de mensagem baseado no conteúdo
+        if "✅" in message or "concluído" in message.lower():
+            # Mensagem de sucesso
+            msg_box = QMessageBox(QMessageBox.Information, "Áudio", message)
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: #1e1e1e;
+                    color: white;
+                    font-size: 12px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #28a745;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+            """)
+        elif "❌" in message or "erro" in message.lower():
+            # Mensagem de erro
+            msg_box = QMessageBox(QMessageBox.Critical, "Erro de Áudio", message)
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: #1e1e1e;
+                    color: white;
+                    font-size: 12px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #dc3545;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+            """)
+        elif "📦" in message or "instalar" in message.lower():
+            # Mensagem de instalação
+            msg_box = QMessageBox(QMessageBox.Information, "Instalação", message)
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: #1e1e1e;
+                    color: white;
+                    font-size: 12px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #ffc107;
+                    color: black;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+            """)
+        else:
+            # Mensagem padrão
+            msg_box = QMessageBox(QMessageBox.Information, "Áudio", message)
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: #1e1e1e;
+                    color: white;
+                    font-size: 12px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #007acc;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+            """)
+        
+        msg_box.exec_()
 
 class AudioControlWidget(QWidget):
     """Widget compacto para controle de áudio"""
