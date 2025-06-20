@@ -30,32 +30,50 @@ except ImportError:
 
 # Importar o novo widget da aba de configurações
 try:
-    from config_ui import ConfigBackupTab
+    from config_ui_expanded import ConfigBackupTabExpanded as ConfigBackupTab
     CONFIG_UI_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠️  Aviso: Módulo config_ui não encontrado. A aba de configurações não estará disponível. Erro: {e}")
+    print(f"⚠️  Aviso: Módulo config_ui_expanded não encontrado. A aba de configurações não estará disponível. Erro: {e}")
     CONFIG_UI_AVAILABLE = False
     ConfigBackupTab = None
 
-# Importar o agente e sistema RAG com LangChain
+# Importar widgets de controle
+try:
+    from agent_selector_widget import AgentSelectorWidget
+    from audio_control_widget import AudioControlWidget
+    CONTROL_WIDGETS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️  Aviso: Widgets de controle não encontrados: {e}")
+    CONTROL_WIDGETS_AVAILABLE = False
+    AgentSelectorWidget = None
+    AudioControlWidget = None
+
+# Importar o agente e sistema RAG funcional
 try:
     from ai_agente_mcp import AiAgenteMCP
-    from rag_system_langchain import RAGSystemLangChain as RAGSystem
+    from rag_system_functional import RAGSystemFunctional as RAGSystem
     LANGCHAIN_AVAILABLE = True
-    print("✅ Sistema RAG com LangChain carregado com sucesso")
+    print("✅ Sistema RAG Funcional carregado com sucesso")
 except ImportError as e:
-    print(f"⚠️  Aviso: LangChain não disponível: {e}")
-    print("Tentando carregar sistema RAG original...")
+    print(f"⚠️  Aviso: Sistema RAG Funcional não disponível: {e}")
+    print("Tentando carregar sistema RAG LangChain...")
     try:
-        from rag_system import RAGSystem
-        LANGCHAIN_AVAILABLE = False
-        print("✅ Sistema RAG original carregado (modo de compatibilidade)")
+        from rag_system_langchain import RAGSystemLangChain as RAGSystem
+        LANGCHAIN_AVAILABLE = True
+        print("✅ Sistema RAG LangChain carregado (fallback)")
     except ImportError as e2:
-        print(f"❌ Erro: Nenhum sistema RAG disponível: {e2}")
-        print("A interface funcionará em modo limitado")
-        LANGCHAIN_AVAILABLE = False
-        AiAgenteMCP = None
-        RAGSystem = None
+        print(f"⚠️  Aviso: LangChain não disponível: {e2}")
+        print("Tentando carregar sistema RAG original...")
+        try:
+            from rag_system import RAGSystem
+            LANGCHAIN_AVAILABLE = False
+            print("✅ Sistema RAG original carregado (modo de compatibilidade)")
+        except ImportError as e3:
+            print(f"❌ Erro: Nenhum sistema RAG disponível: {e3}")
+            print("A interface funcionará em modo limitado")
+            LANGCHAIN_AVAILABLE = False
+            AiAgenteMCP = None
+            RAGSystem = None
 
 class DarkTheme:
     """Tema escuro para programadores - Mesmo tema do Editor UI/UX"""
@@ -331,6 +349,11 @@ class AiAgentGUI(QMainWindow):
         # Layout principal
         main_layout = QVBoxLayout(central_widget)
         
+        # Barra de controle no topo
+        self.create_control_bar()
+        control_bar_widget = self.control_bar
+        main_layout.addWidget(control_bar_widget)
+        
         # Criar abas
         self.tab_widget = QTabWidget()
         main_layout.addWidget(self.tab_widget)
@@ -355,6 +378,107 @@ class AiAgentGUI(QMainWindow):
         
         # Status bar
         self.statusBar().showMessage("🤖 Sistema Integrado de Conhecimento - Pronto")
+    
+    def create_control_bar(self):
+        """Cria barra de controle com widgets de robô e microfone"""
+        self.control_bar = QWidget()
+        self.control_bar.setFixedHeight(50)
+        self.control_bar.setStyleSheet("""
+            QWidget {
+                background-color: #1e1e1e;
+                border-bottom: 2px solid #404040;
+            }
+        """)
+        
+        layout = QHBoxLayout(self.control_bar)
+        layout.setContentsMargins(10, 5, 10, 5)
+        
+        # Título da aplicação
+        title_label = QLabel("🤖 AiAgenteMCP")
+        title_font = QFont()
+        title_font.setPointSize(14)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #00ff7f;")
+        
+        layout.addWidget(title_label)
+        layout.addStretch()
+        
+        # Widgets de controle no canto direito
+        if CONTROL_WIDGETS_AVAILABLE:
+            # Widget de seleção de agente (robô)
+            self.agent_selector = AgentSelectorWidget()
+            self.agent_selector.agent_changed.connect(self.on_agent_selected)
+            layout.addWidget(self.agent_selector)
+            
+            # Separador visual
+            separator = QLabel("|")
+            separator.setStyleSheet("color: #666666; margin: 0 10px;")
+            layout.addWidget(separator)
+            
+            # Widget de controle de áudio (microfone)
+            self.audio_control = AudioControlWidget()
+            self.audio_control.audio_settings_changed.connect(self.on_audio_settings_changed)
+            self.audio_control.voice_command_received.connect(self.on_voice_command_received)
+            layout.addWidget(self.audio_control)
+        else:
+            # Fallback se widgets não estiverem disponíveis
+            fallback_label = QLabel("Widgets de controle não disponíveis")
+            fallback_label.setStyleSheet("color: #666666; font-size: 10px;")
+            layout.addWidget(fallback_label)
+    
+    def on_agent_selected(self, agent_data):
+        """Manipula seleção de novo agente"""
+        try:
+            self.current_agent_data = agent_data
+            
+            # Atualizar configuração da API se necessário
+            if hasattr(self, 'api_key_input') and agent_data.get('provider') == 'OpenAI':
+                # Configurar para OpenAI
+                self.api_key_input.setPlaceholderText("Chave da API OpenAI...")
+            elif hasattr(self, 'api_key_input'):
+                # Configurar para OpenRouter
+                self.api_key_input.setPlaceholderText("Chave da API OpenRouter...")
+            
+            # Atualizar status
+            self.statusBar().showMessage(f"🤖 Agente selecionado: {agent_data['name']} ({agent_data['provider']})")
+            
+            # Recarregar agente se necessário
+            if hasattr(self, 'agent') and self.agent:
+                self.load_agent()
+                
+        except Exception as e:
+            self.statusBar().showMessage(f"❌ Erro ao selecionar agente: {str(e)}")
+    
+    def on_audio_settings_changed(self, settings):
+        """Manipula mudança nas configurações de áudio"""
+        try:
+            self.audio_settings = settings
+            
+            if settings.get('microphone_enabled'):
+                self.statusBar().showMessage("🎤 Microfone ativado - Comando de voz disponível")
+            else:
+                self.statusBar().showMessage("🔇 Microfone desativado")
+                
+        except Exception as e:
+            self.statusBar().showMessage(f"❌ Erro nas configurações de áudio: {str(e)}")
+    
+    def on_voice_command_received(self, command):
+        """Manipula comando de voz recebido"""
+        try:
+            # Adicionar comando ao chat se estiver na aba de teste
+            if hasattr(self, 'chat_area'):
+                self.chat_area.append(f"🎤 [Comando de Voz]: {command}")
+            
+            # Processar comando
+            if hasattr(self, 'message_input'):
+                self.message_input.setText(command)
+                self.send_message()
+            
+            self.statusBar().showMessage(f"🎤 Comando recebido: {command}")
+            
+        except Exception as e:
+            self.statusBar().showMessage(f"❌ Erro ao processar comando de voz: {str(e)}")
     
     def create_robot_icon(self):
         """Cria um ícone de robô simples para a aplicação"""

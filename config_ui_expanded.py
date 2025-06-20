@@ -251,7 +251,47 @@ class ConfigBackupTabExpanded(QWidget):
         
         layout.addLayout(refresh_layout)
         
-        # Botões
+        # Seção Docker Compose
+        compose_group = QGroupBox("📋 Docker Compose Generator")
+        compose_layout = QVBoxLayout(compose_group)
+        
+        # Seleção de serviços
+        compose_layout.addWidget(QLabel("🎯 Serviços para incluir:"))
+        services_layout = QGridLayout()
+        
+        self.service_supabase = QCheckBox("🗃️ Supabase (PostgreSQL)")
+        self.service_supabase.setChecked(True)
+        services_layout.addWidget(self.service_supabase, 0, 0)
+        
+        self.service_n8n = QCheckBox("🔄 N8N (Automação)")
+        self.service_n8n.setChecked(True)
+        services_layout.addWidget(self.service_n8n, 0, 1)
+        
+        self.service_ollama = QCheckBox("🧠 Ollama (LLM Local)")
+        self.service_ollama.setChecked(True)
+        services_layout.addWidget(self.service_ollama, 1, 0)
+        
+        self.service_redis = QCheckBox("⚡ Redis (Cache)")
+        self.service_redis.setChecked(True)
+        services_layout.addWidget(self.service_redis, 1, 1)
+        
+        compose_layout.addLayout(services_layout)
+        
+        # Botões do Docker Compose
+        compose_buttons = QHBoxLayout()
+        
+        generate_compose_btn = QPushButton("📝 Gerar docker-compose.yml")
+        generate_compose_btn.clicked.connect(self._generate_docker_compose)
+        compose_buttons.addWidget(generate_compose_btn)
+        
+        preview_compose_btn = QPushButton("👁️ Visualizar")
+        preview_compose_btn.clicked.connect(self._preview_docker_compose)
+        compose_buttons.addWidget(preview_compose_btn)
+        
+        compose_layout.addLayout(compose_buttons)
+        layout.addWidget(compose_group)
+        
+        # Botões principais
         buttons_layout = QHBoxLayout()
         
         test_docker_btn = QPushButton("🧪 Testar Conexão Docker")
@@ -559,6 +599,128 @@ class ConfigBackupTabExpanded(QWidget):
     def connect_signals(self):
         """Conecta sinais internos"""
         self.backup_finished.connect(self.on_backup_finished)
+    
+    def _generate_docker_compose(self):
+        """Gera arquivo docker-compose.yml"""
+        try:
+            # Importar o gerador
+            from docker_compose_generator import create_docker_compose
+            
+            # Coletar serviços selecionados
+            services = []
+            if hasattr(self, 'service_supabase') and self.service_supabase.isChecked():
+                services.append('supabase')
+            if hasattr(self, 'service_n8n') and self.service_n8n.isChecked():
+                services.append('n8n')
+            if hasattr(self, 'service_ollama') and self.service_ollama.isChecked():
+                services.append('ollama')
+            if hasattr(self, 'service_redis') and self.service_redis.isChecked():
+                services.append('redis')
+            
+            # Gerar docker-compose
+            result = create_docker_compose(services)
+            
+            # Mostrar resultado
+            QMessageBox.information(
+                self,
+                "✅ Docker Compose Gerado",
+                f"Arquivos criados com sucesso:\n\n"
+                f"📄 {result['compose_file']}\n"
+                f"📄 {result['env_file']}\n\n"
+                f"Para usar:\n"
+                f"1. cp .env.example .env\n"
+                f"2. Configure as variáveis no .env\n"
+                f"3. docker-compose up -d"
+            )
+            
+        except ImportError:
+            QMessageBox.warning(
+                self,
+                "❌ Erro",
+                "Módulo docker_compose_generator não encontrado.\n"
+                "Certifique-se de que o arquivo docker_compose_generator.py existe."
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "❌ Erro na Geração",
+                f"Erro ao gerar docker-compose.yml:\n\n{str(e)}"
+            )
+    
+    def _preview_docker_compose(self):
+        """Visualiza o docker-compose.yml antes de gerar"""
+        try:
+            from docker_compose_generator import DockerComposeGenerator
+            import yaml
+            
+            # Coletar serviços selecionados
+            services = []
+            if hasattr(self, 'service_supabase') and self.service_supabase.isChecked():
+                services.append('supabase')
+            if hasattr(self, 'service_n8n') and self.service_n8n.isChecked():
+                services.append('n8n')
+            if hasattr(self, 'service_ollama') and self.service_ollama.isChecked():
+                services.append('ollama')
+            if hasattr(self, 'service_redis') and self.service_redis.isChecked():
+                services.append('redis')
+            
+            # Gerar preview
+            generator = DockerComposeGenerator()
+            result = generator.generate_compose_file(services)
+            compose_yaml = yaml.dump(result['compose'], default_flow_style=False, sort_keys=False)
+            
+            # Mostrar preview em dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("👁️ Preview Docker Compose")
+            dialog.setModal(True)
+            dialog.resize(800, 600)
+            
+            layout = QVBoxLayout(dialog)
+            
+            # Área de texto
+            text_area = QTextEdit()
+            text_area.setPlainText(compose_yaml)
+            text_area.setFont(QFont("Courier", 10))
+            text_area.setStyleSheet("""
+                QTextEdit {
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    border: 1px solid #404040;
+                }
+            """)
+            layout.addWidget(text_area)
+            
+            # Botões
+            buttons = QHBoxLayout()
+            
+            copy_btn = QPushButton("📋 Copiar")
+            copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(compose_yaml))
+            buttons.addWidget(copy_btn)
+            
+            generate_btn = QPushButton("📝 Gerar Arquivo")
+            generate_btn.clicked.connect(lambda: [dialog.accept(), self._generate_docker_compose()])
+            buttons.addWidget(generate_btn)
+            
+            close_btn = QPushButton("❌ Fechar")
+            close_btn.clicked.connect(dialog.reject)
+            buttons.addWidget(close_btn)
+            
+            layout.addLayout(buttons)
+            
+            dialog.exec_()
+            
+        except ImportError:
+            QMessageBox.warning(
+                self,
+                "❌ Erro",
+                "Módulo docker_compose_generator não encontrado."
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "❌ Erro no Preview",
+                f"Erro ao gerar preview:\n\n{str(e)}"
+            )
 
 # Função de compatibilidade
 ConfigBackupTab = ConfigBackupTabExpanded 
