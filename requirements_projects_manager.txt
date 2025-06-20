@@ -1,0 +1,6 @@
+# Dependências para Projects Manager
+pyzipper>=0.3.6
+PyDrive2>=1.19.0
+yagmail>=0.15.293
+PyQt5>=5.15.0
+terabox-python>=0.1.7 
