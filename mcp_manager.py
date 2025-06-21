@@ -54,7 +54,7 @@ class GitHubMCPInstaller:
             self.headers["Authorization"] = f"token {self.github_token}"
             logger.info("GitHub token configurado")
         else:
-            logger.warning("GitHub token não configurado - rate limit reduzido")
+            logger.info("GitHub token não configurado - usando rate limit padrão")
     
     def search_mcp_on_github(self, mcp_name: str) -> List[Dict[str, Any]]:
         """Busca MCPs no GitHub"""

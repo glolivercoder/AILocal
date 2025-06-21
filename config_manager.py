@@ -6,6 +6,11 @@ import string
 from datetime import datetime
 from pathlib import Path
 import json
+import warnings
+
+# Suprimir warnings específicos do oauth2client
+warnings.filterwarnings('ignore', message='Cannot access gdrive_creds.txt')
+warnings.filterwarnings('ignore', module='oauth2client._helpers')
 
 # Importar lógicas do Google Drive se disponíveis
 try:
@@ -205,4 +210,4 @@ if __name__ == '__main__':
     print(f"Resultado do fluxo de backup: {json.dumps(backup_result, indent=2)}")
 
     print("\n--- Histórico de Backups ---")
-    print(json.dumps(manager.list_backups(), indent=2)) 
+    print(json.dumps(manager.list_backups(), indent=2))

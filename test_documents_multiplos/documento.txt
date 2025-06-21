@@ -1,0 +1,1 @@
+Este é um documento de texto simples para teste do sistema RAG. Contém informações sobre desenvolvimento de aplicações móveis e web.
