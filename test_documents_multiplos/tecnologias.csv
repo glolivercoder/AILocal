@@ -1,0 +1,9 @@
+Categoria,Tecnologia,Descrição,Popularidade
+Frontend,React,Biblioteca JavaScript,Alta
+Frontend,Vue.js,Framework progressivo,Média
+Backend,Node.js,Runtime JavaScript,Alta
+Backend,Python,Linguagem versátil,Alta
+Banco,PostgreSQL,Banco relacional,Alta
+Banco,MongoDB,Banco NoSQL,Média
+Mobile,React Native,Framework cross-platform,Alta
+Mobile,Flutter,SDK do Google,Crescente

@@ -51,7 +51,9 @@ class CursorMCPManager:
                 "package": "@modelcontextprotocol/server-filesystem",
                 "port": 3333,
                 "description": "Acesso completo ao sistema de arquivos",
-                "category": "system"
+                "category": "system",
+                "args_template": ["-y", "@modelcontextprotocol/server-filesystem", "{workspace_folder}"],
+                "requires_directory": True
             },
             "postgres": {
                 "name": "PostgreSQL",
@@ -191,10 +193,13 @@ class CursorMCPManager:
         except Exception as e:
             return False, f"Erro ao escrever mcp.json: {e}"
     
-    def generate_mcp_config_for_cursor(self, selected_mcps: Optional[List[str]] = None) -> Dict:
+    def generate_mcp_config_for_cursor(self, selected_mcps: Optional[List[str]] = None, workspace_folder: Optional[str] = None) -> Dict:
         """Gera configuração MCP para o Cursor"""
         if selected_mcps is None:
             selected_mcps = list(self.mcps.keys())
+        
+        if workspace_folder is None:
+            workspace_folder = os.getcwd()  # Usa diretório atual como padrão
         
         config = {
             "mcpServers": {}
@@ -203,21 +208,34 @@ class CursorMCPManager:
         for mcp_key in selected_mcps:
             if mcp_key in self.mcps:
                 mcp = self.mcps[mcp_key]
-                config["mcpServers"][mcp["name"]] = {
+                
+                # Usa template de argumentos específico se disponível
+                if "args_template" in mcp:
+                    args = []
+                    for arg in mcp["args_template"]:
+                        if "{workspace_folder}" in arg:
+                            args.append(arg.replace("{workspace_folder}", workspace_folder))
+                        else:
+                            args.append(arg)
+                else:
+                    # Configuração padrão para MCPs sem template
+                    args = [mcp["package"], "--port", str(mcp["port"])]
+                
+                config["mcpServers"][mcp_key] = {
                     "command": "npx",
-                    "args": [mcp["package"], "--port", str(mcp["port"])],
+                    "args": args,
                     "env": {}
                 }
         
         return config
     
-    def install_mcps_to_cursor(self, selected_mcps: Optional[List[str]] = None) -> Tuple[bool, str]:
+    def install_mcps_to_cursor(self, selected_mcps: Optional[List[str]] = None, workspace_folder: Optional[str] = None) -> Tuple[bool, str]:
         """Instala MCPs no Cursor"""
         if selected_mcps is None:
             selected_mcps = list(self.mcps.keys())
         
         # Gera a configuração
-        config = self.generate_mcp_config_for_cursor(selected_mcps)
+        config = self.generate_mcp_config_for_cursor(selected_mcps, workspace_folder)
         
         # Escreve no arquivo do Cursor
         success, error = self.write_cursor_mcp_config(config)
@@ -226,6 +244,39 @@ class CursorMCPManager:
             return True, f"MCPs instalados com sucesso no Cursor: {', '.join(selected_mcps)}"
         else:
             return False, f"Erro ao instalar MCPs: {error or 'Erro desconhecido'}"
+    
+    def install_filesystem_mcp_for_project(self, project_path: Optional[str] = None) -> Tuple[bool, str]:
+        """Instala especificamente o MCP filesystem para o projeto atual"""
+        if project_path is None:
+            project_path = os.getcwd()
+        
+        # Verifica se o diretório existe
+        if not os.path.exists(project_path):
+            return False, f"Diretório não encontrado: {project_path}"
+        
+        # Lê configuração atual
+        config, error = self.read_cursor_mcp_config()
+        if config is None:
+            config = {"mcpServers": {}}
+        
+        # Adiciona ou atualiza o MCP filesystem
+        config["mcpServers"]["filesystem"] = {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                project_path
+            ],
+            "env": {}
+        }
+        
+        # Escreve a configuração
+        success, error = self.write_cursor_mcp_config(config)
+        
+        if success:
+            return True, f"MCP Filesystem instalado com sucesso para o projeto: {project_path}"
+        else:
+            return False, f"Erro ao instalar MCP Filesystem: {error or 'Erro desconhecido'}"
     
     def get_mcp_status_in_cursor(self) -> Tuple[Dict, Optional[str]]:
         """Verifica quais MCPs estão instalados no Cursor"""
@@ -382,29 +433,52 @@ def main():
         status = "✅" if success else "❌"
         print(f"  {status} {mcp_name}: {message}")
     
-    # Perguntar se quer instalar MCPs
-    print(f"\n🤔 Deseja instalar MCPs no Cursor? (s/n): ", end="")
+    # Perguntar se quer instalar o MCP filesystem para o projeto atual
+    print(f"\n🤔 Deseja instalar o MCP Filesystem para o projeto atual? (s/n): ", end="")
     
     try:
         response = input().lower().strip()
         if response in ['s', 'sim', 'y', 'yes']:
-            print("\n📦 Instalando MCPs essenciais...")
+            print("\n📦 Instalando MCP Filesystem para o projeto atual...")
             
-            # Instalar MCPs essenciais
-            essential_mcps = ["filesystem", "postgres", "brave-search"]
-            success, message = manager.install_mcps_to_cursor(essential_mcps)
+            # Instalar MCP filesystem para o projeto atual
+            success, message = manager.install_filesystem_mcp_for_project()
             
             if success:
                 print(f"✅ {message}")
                 
                 # Mostrar configuração gerada
-                config = manager.generate_mcp_config_for_cursor(essential_mcps)
-                print(f"\n📄 Configuração gerada:")
-                print(json.dumps(config, indent=2, ensure_ascii=False))
+                config, _ = manager.read_cursor_mcp_config()
+                if config:
+                    print(f"\n📄 Configuração atual do mcp.json:")
+                    print(json.dumps(config, indent=2, ensure_ascii=False))
             else:
                 print(f"❌ {message}")
         else:
             print("Instalação pulada.")
+            
+        # Perguntar se quer instalar outros MCPs
+        print(f"\n🤔 Deseja instalar outros MCPs essenciais? (s/n): ", end="")
+        response2 = input().lower().strip()
+        if response2 in ['s', 'sim', 'y', 'yes']:
+            print("\n📦 Instalando MCPs essenciais...")
+            
+            # Instalar MCPs essenciais (exceto filesystem que já foi instalado)
+            essential_mcps = ["postgres", "brave-search", "puppeteer"]
+            success, message = manager.install_mcps_to_cursor(essential_mcps, os.getcwd())
+            
+            if success:
+                print(f"✅ {message}")
+                
+                # Mostrar configuração gerada
+                config, _ = manager.read_cursor_mcp_config()
+                if config:
+                    print(f"\n📄 Configuração final do mcp.json:")
+                    print(json.dumps(config, indent=2, ensure_ascii=False))
+            else:
+                print(f"❌ {message}")
+        else:
+            print("Instalação de MCPs adicionais pulada.")
     
     except KeyboardInterrupt:
         print("\n\n⏹️ Operação interrompida pelo usuário")
@@ -412,4 +486,4 @@ def main():
     print("\n✅ Demonstração concluída!")
 
 if __name__ == "__main__":
-    main() 
+    main()

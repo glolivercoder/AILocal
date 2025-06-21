@@ -51,29 +51,36 @@ except ImportError as e:
 # Importar o agente e sistema RAG funcional
 try:
     from ai_agente_mcp import AiAgenteMCP
-    from rag_system_functional import RAGSystemFunctional as RAGSystem
+    from rag_system_functional import UltraSimpleRAG as RAGSystem
     LANGCHAIN_AVAILABLE = True
-    print("✅ Sistema RAG Funcional carregado com sucesso")
+    print("✅ Sistema RAG UltraSimpleRAG carregado com sucesso")
 except ImportError as e:
-    print(f"⚠️  Aviso: Sistema RAG Funcional não disponível: {e}")
-    print("Tentando carregar sistema RAG LangChain...")
+    print(f"⚠️  Aviso: UltraSimpleRAG não disponível: {e}")
+    print("Tentando carregar RAGSystemFunctional...")
     try:
-        from rag_system_langchain import RAGSystemLangChain as RAGSystem
+        from rag_system_functional import RAGSystemFunctional as RAGSystem
         LANGCHAIN_AVAILABLE = True
-        print("✅ Sistema RAG LangChain carregado (fallback)")
+        print("✅ Sistema RAG Funcional carregado com sucesso")
     except ImportError as e2:
-        print(f"⚠️  Aviso: LangChain não disponível: {e2}")
-        print("Tentando carregar sistema RAG original...")
+        print(f"⚠️  Aviso: Sistema RAG Funcional não disponível: {e2}")
+        print("Tentando carregar sistema RAG LangChain...")
         try:
-            from rag_system import RAGSystem
-            LANGCHAIN_AVAILABLE = False
-            print("✅ Sistema RAG original carregado (modo de compatibilidade)")
+            from rag_system_langchain import RAGSystemLangChain as RAGSystem
+            LANGCHAIN_AVAILABLE = True
+            print("✅ Sistema RAG LangChain carregado (fallback)")
         except ImportError as e3:
-            print(f"❌ Erro: Nenhum sistema RAG disponível: {e3}")
-            print("A interface funcionará em modo limitado")
-            LANGCHAIN_AVAILABLE = False
-            AiAgenteMCP = None
-            RAGSystem = None
+            print(f"⚠️  Aviso: LangChain não disponível: {e3}")
+            print("Tentando carregar sistema RAG original...")
+            try:
+                from rag_system import RAGSystem
+                LANGCHAIN_AVAILABLE = False
+                print("✅ Sistema RAG original carregado (modo de compatibilidade)")
+            except ImportError as e4:
+                print(f"❌ Erro: Nenhum sistema RAG disponível: {e4}")
+                print("A interface funcionará em modo limitado")
+                LANGCHAIN_AVAILABLE = False
+                AiAgenteMCP = None
+                RAGSystem = None
 
 class DarkTheme:
     """Tema escuro para programadores - Mesmo tema do Editor UI/UX"""
@@ -664,6 +671,22 @@ class AiAgentGUI(QMainWindow):
         mcp_widget = QWidget()
         layout = QVBoxLayout(mcp_widget)
         
+        # Seção de configuração do diretório raiz
+        root_dir_group = QGroupBox("📁 Configuração do Diretório Raiz")
+        root_dir_layout = QHBoxLayout(root_dir_group)
+        
+        root_dir_layout.addWidget(QLabel("Diretório Raiz:"))
+        self.root_directory_input = QLineEdit()
+        self.root_directory_input.setPlaceholderText("Selecione o diretório raiz para comandos MCP...")
+        self.root_directory_input.setText(os.getcwd())  # Diretório atual como padrão
+        root_dir_layout.addWidget(self.root_directory_input)
+        
+        self.browse_root_dir_btn = QPushButton("📂 Procurar")
+        self.browse_root_dir_btn.clicked.connect(self.browse_root_directory)
+        root_dir_layout.addWidget(self.browse_root_dir_btn)
+        
+        layout.addWidget(root_dir_group)
+        
         # Splitter para dividir a interface
         splitter = QSplitter(Qt.Horizontal)
         layout.addWidget(splitter)
@@ -672,7 +695,34 @@ class AiAgentGUI(QMainWindow):
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         
-        # Grupo de MCPs
+        # Grupo de MCPs do Cursor
+        cursor_mcps_group = QGroupBox("🎯 MCPs do Cursor (Carregados Diretamente)")
+        cursor_mcps_layout = QVBoxLayout(cursor_mcps_group)
+        
+        # Botões de controle do Cursor
+        cursor_control_layout = QHBoxLayout()
+        
+        self.load_cursor_mcps_btn = QPushButton("📥 Carregar MCPs do Cursor")
+        self.load_cursor_mcps_btn.clicked.connect(self.load_cursor_mcps)
+        cursor_control_layout.addWidget(self.load_cursor_mcps_btn)
+        
+        self.save_to_cursor_btn = QPushButton("💾 Salvar para Cursor")
+        self.save_to_cursor_btn.clicked.connect(self.save_cursor_mcps)
+        cursor_control_layout.addWidget(self.save_to_cursor_btn)
+        
+        cursor_mcps_layout.addLayout(cursor_control_layout)
+        
+        # Tabela de MCPs do Cursor
+        self.cursor_mcps_table = QTableWidget()
+        self.cursor_mcps_table.setColumnCount(7)
+        self.cursor_mcps_table.setHorizontalHeaderLabels([
+            "Nome", "Status", "Porta", "Categoria", "Comando NPX", "Diretório", "Descrição"
+        ])
+        cursor_mcps_layout.addWidget(self.cursor_mcps_table)
+        
+        left_layout.addWidget(cursor_mcps_group)
+        
+        # Grupo de MCPs Disponíveis
         mcps_group = QGroupBox("🔌 MCPs Disponíveis")
         mcps_layout = QVBoxLayout(mcps_group)
         
@@ -704,6 +754,27 @@ class AiAgentGUI(QMainWindow):
         mcp_buttons_layout.addWidget(self.refresh_mcps_btn)
         
         mcps_layout.addLayout(mcp_buttons_layout)
+        
+        # Botões de controle NPX
+        npx_buttons_layout = QHBoxLayout()
+        
+        self.execute_npx_btn = QPushButton("⚡ Executar NPX")
+        self.execute_npx_btn.clicked.connect(self.execute_npx_command)
+        npx_buttons_layout.addWidget(self.execute_npx_btn)
+        
+        self.add_npx_command_btn = QPushButton("➕ Adicionar Comando NPX")
+        self.add_npx_command_btn.clicked.connect(self.add_npx_command)
+        npx_buttons_layout.addWidget(self.add_npx_command_btn)
+        
+        self.terminal_output_btn = QPushButton("📟 Ver Terminal")
+        self.terminal_output_btn.clicked.connect(self.show_terminal_output)
+        npx_buttons_layout.addWidget(self.terminal_output_btn)
+        
+        self.install_filesystem_btn = QPushButton("📁 Instalar Filesystem MCP")
+        self.install_filesystem_btn.clicked.connect(self.install_filesystem_mcp)
+        npx_buttons_layout.addWidget(self.install_filesystem_btn)
+        
+        mcps_layout.addLayout(npx_buttons_layout)
         
         # Botões de instalação avançada
         advanced_buttons_layout = QHBoxLayout()
@@ -2412,6 +2483,295 @@ class AiAgentGUI(QMainWindow):
             
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Erro ao atualizar estatísticas: {e}")
+    
+    def execute_npx_command(self):
+        """Executa comando NPX no diretório selecionado"""
+        try:
+            current_row = self.cursor_mcps_table.currentRow()
+            if current_row < 0:
+                QMessageBox.warning(self, "Erro", "Selecione um MCP para executar")
+                return
+            
+            # Obter comando NPX da tabela
+            npx_command = self.cursor_mcps_table.item(current_row, 4).text()
+            if not npx_command or npx_command == "N/A":
+                QMessageBox.warning(self, "Erro", "Este MCP não possui comando NPX")
+                return
+            
+            # Obter diretório raiz
+            root_dir = self.root_directory_input.text().strip()
+            if not root_dir:
+                QMessageBox.warning(self, "Erro", "Selecione um diretório raiz")
+                return
+            
+            if not os.path.exists(root_dir):
+                QMessageBox.warning(self, "Erro", "Diretório raiz não existe")
+                return
+            
+            # Confirmar execução
+            reply = QMessageBox.question(self, "Confirmar", 
+                f"Executar comando NPX no diretório {root_dir}?\n\nComando: {npx_command}",
+                QMessageBox.Yes | QMessageBox.No)
+            
+            if reply == QMessageBox.Yes:
+                # Executar comando em thread separada
+                def execute_command():
+                    try:
+                        import subprocess
+                        result = subprocess.run(
+                            npx_command.split(),
+                            cwd=root_dir,
+                            capture_output=True,
+                            text=True,
+                            shell=True
+                        )
+                        
+                        # Armazenar resultado
+                        self.last_terminal_output = {
+                            'command': npx_command,
+                            'directory': root_dir,
+                            'stdout': result.stdout,
+                            'stderr': result.stderr,
+                            'returncode': result.returncode
+                        }
+                        
+                        if result.returncode == 0:
+                            QMessageBox.information(self, "Sucesso", "Comando executado com sucesso")
+                        else:
+                            QMessageBox.warning(self, "Erro", f"Comando falhou com código {result.returncode}")
+                            
+                    except Exception as e:
+                        QMessageBox.critical(self, "Erro", f"Erro ao executar comando: {e}")
+                
+                thread = threading.Thread(target=execute_command)
+                thread.daemon = True
+                thread.start()
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao executar comando NPX: {e}")
+    
+    def add_npx_command(self):
+        """Adiciona comando NPX personalizado"""
+        try:
+            command, ok = QInputDialog.getText(self, "Adicionar Comando NPX", 
+                "Digite o comando NPX (ex: npx create-react-app my-app):")
+            
+            if ok and command.strip():
+                # Adicionar à lista de comandos personalizados
+                if not hasattr(self, 'custom_npx_commands'):
+                    self.custom_npx_commands = []
+                
+                self.custom_npx_commands.append(command.strip())
+                QMessageBox.information(self, "Sucesso", "Comando NPX adicionado")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao adicionar comando NPX: {e}")
+    
+    def show_terminal_output(self):
+        """Mostra saída do terminal"""
+        try:
+            if not hasattr(self, 'last_terminal_output'):
+                QMessageBox.information(self, "Info", "Nenhuma saída de terminal disponível")
+                return
+            
+            output = self.last_terminal_output
+            
+            # Criar janela de diálogo para mostrar saída
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Saída do Terminal")
+            dialog.setModal(True)
+            dialog.resize(600, 400)
+            
+            layout = QVBoxLayout(dialog)
+            
+            # Informações do comando
+            info_label = QLabel(f"Comando: {output['command']}\nDiretório: {output['directory']}\nCódigo de retorno: {output['returncode']}")
+            layout.addWidget(info_label)
+            
+            # Saída padrão
+            if output['stdout']:
+                stdout_label = QLabel("Saída padrão:")
+                layout.addWidget(stdout_label)
+                
+                stdout_text = QTextEdit()
+                stdout_text.setPlainText(output['stdout'])
+                stdout_text.setReadOnly(True)
+                layout.addWidget(stdout_text)
+            
+            # Saída de erro
+            if output['stderr']:
+                stderr_label = QLabel("Saída de erro:")
+                layout.addWidget(stderr_label)
+                
+                stderr_text = QTextEdit()
+                stderr_text.setPlainText(output['stderr'])
+                stderr_text.setReadOnly(True)
+                stderr_text.setStyleSheet("color: red;")
+                layout.addWidget(stderr_text)
+            
+            # Botão fechar
+            close_btn = QPushButton("Fechar")
+            close_btn.clicked.connect(dialog.close)
+            layout.addWidget(close_btn)
+            
+            dialog.exec_()
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao mostrar saída do terminal: {e}")
+    
+    def browse_root_directory(self):
+        """Abre diálogo para selecionar diretório raiz"""
+        try:
+            directory = QFileDialog.getExistingDirectory(self, "Selecionar Diretório Raiz")
+            if directory:
+                self.root_directory_input.setText(directory)
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao selecionar diretório: {e}")
+    
+    def load_cursor_mcps(self):
+        """Carrega MCPs do Cursor"""
+        try:
+            from cursor_mcp_manager import CursorMCPManager
+            
+            cursor_manager = CursorMCPManager()
+            mcp_config = cursor_manager.read_mcp_config()
+            
+            if mcp_config and 'mcpServers' in mcp_config:
+                self.cursor_mcps_table.setRowCount(len(mcp_config['mcpServers']))
+                
+                for row, (name, config) in enumerate(mcp_config['mcpServers'].items()):
+                    self.cursor_mcps_table.setItem(row, 0, QTableWidgetItem(name))
+                    self.cursor_mcps_table.setItem(row, 1, QTableWidgetItem("Configurado"))
+                    
+                    # Porta (se disponível)
+                    port = config.get('env', {}).get('PORT', 'N/A')
+                    self.cursor_mcps_table.setItem(row, 2, QTableWidgetItem(str(port)))
+                    
+                    # Categoria
+                    category = config.get('category', 'Geral')
+                    self.cursor_mcps_table.setItem(row, 3, QTableWidgetItem(category))
+                    
+                    # Comando NPX (se disponível)
+                    command = config.get('command', 'N/A')
+                    if isinstance(command, list):
+                        command = ' '.join(command)
+                    self.cursor_mcps_table.setItem(row, 4, QTableWidgetItem(command))
+                    
+                    # Diretório
+                    directory = config.get('cwd', 'N/A')
+                    self.cursor_mcps_table.setItem(row, 5, QTableWidgetItem(directory))
+                    
+                    # Descrição
+                    description = config.get('description', 'Sem descrição')
+                    self.cursor_mcps_table.setItem(row, 6, QTableWidgetItem(description))
+                
+                self.cursor_mcps_table.resizeColumnsToContents()
+                QMessageBox.information(self, "Sucesso", f"Carregados {len(mcp_config['mcpServers'])} MCPs do Cursor")
+            else:
+                QMessageBox.warning(self, "Aviso", "Nenhum MCP encontrado no Cursor")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao carregar MCPs do Cursor: {e}")
+    
+    def save_cursor_mcps(self):
+        """Salva configurações de MCPs no Cursor"""
+        try:
+            from cursor_mcp_manager import CursorMCPManager
+            
+            cursor_manager = CursorMCPManager()
+            
+            # Criar configuração a partir da tabela
+            mcp_config = {'mcpServers': {}}
+            
+            for row in range(self.cursor_mcps_table.rowCount()):
+                name = self.cursor_mcps_table.item(row, 0).text()
+                command = self.cursor_mcps_table.item(row, 4).text()
+                directory = self.cursor_mcps_table.item(row, 5).text()
+                description = self.cursor_mcps_table.item(row, 6).text()
+                
+                config = {
+                    'command': command.split() if command != 'N/A' else [],
+                    'cwd': directory if directory != 'N/A' else '',
+                    'description': description
+                }
+                
+                mcp_config['mcpServers'][name] = config
+            
+            success = cursor_manager.write_mcp_config(mcp_config)
+            
+            if success:
+                QMessageBox.information(self, "Sucesso", "Configurações salvas no Cursor")
+            else:
+                QMessageBox.warning(self, "Erro", "Erro ao salvar configurações")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao salvar MCPs no Cursor: {e}")
+    
+    def install_filesystem_mcp(self):
+        """Instala o MCP Filesystem para o projeto atual"""
+        try:
+            import os
+            import json
+            
+            # Obter diretório do projeto atual
+            project_path = os.getcwd()
+            
+            # Criar diretório .cursor se não existir
+            cursor_dir = os.path.join(project_path, ".cursor")
+            os.makedirs(cursor_dir, exist_ok=True)
+            
+            # Caminho do arquivo mcp.json
+            mcp_json_path = os.path.join(cursor_dir, "mcp.json")
+            
+            # Configuração do filesystem MCP
+            filesystem_config = {
+                "mcpServers": {
+                    "filesystem": {
+                        "command": "npx",
+                        "args": [
+                            "-y",
+                            "@modelcontextprotocol/server-filesystem",
+                            project_path.replace("\\", "\\\\")
+                        ],
+                        "env": {}
+                    }
+                }
+            }
+            
+            # Ler configuração existente se houver
+            existing_config = {"mcpServers": {}}
+            if os.path.exists(mcp_json_path):
+                try:
+                    with open(mcp_json_path, 'r', encoding='utf-8') as f:
+                        existing_config = json.load(f)
+                except:
+                    pass
+            
+            # Adicionar ou atualizar o filesystem MCP
+            if "mcpServers" not in existing_config:
+                existing_config["mcpServers"] = {}
+            
+            existing_config["mcpServers"]["filesystem"] = filesystem_config["mcpServers"]["filesystem"]
+            
+            # Salvar configuração
+            with open(mcp_json_path, 'w', encoding='utf-8') as f:
+                json.dump(existing_config, f, indent=2, ensure_ascii=False)
+            
+            # Atualizar tabela de MCPs do Cursor
+            self.load_cursor_mcps()
+            
+            QMessageBox.information(
+                self, 
+                "Sucesso", 
+                f"MCP Filesystem instalado com sucesso!\n\n"
+                f"Arquivo: {mcp_json_path}\n"
+                f"Diretório: {project_path}\n\n"
+                f"Reinicie o Cursor para usar o novo MCP."
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao instalar Filesystem MCP: {e}")
 
 def main():
     """Função principal"""
@@ -2432,4 +2792,4 @@ def main():
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    main() 
+    main()
