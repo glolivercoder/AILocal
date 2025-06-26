@@ -1,138 +1,161 @@
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Any
-from datetime import datetime
+from typing import Dict, List, Any, Optional
+import json
+import logging
 
 class BackupDatabase:
     """
-    Interface com o banco de dados SQLite para backups.
+    Interface com o banco de dados SQLite para armazenar informações dos backups.
     
-    Esta classe gerencia o armazenamento persistente das informações
-    dos backups em um banco SQLite, incluindo:
-    - Nome do arquivo
-    - Diretório fonte
-    - Tamanho
-    - Data de criação
-    - Status
-    
-    O banco é criado automaticamente se não existir.
+    Attributes:
+        db_path (str): Caminho para o arquivo do banco de dados
     """
     
-    def __init__(self, db_path: str = "backup.db"):
-        """
-        Inicializa a conexão com o banco.
-        
-        Args:
-            db_path: Caminho do arquivo do banco SQLite
-        """
+    def __init__(self, db_path: str = "backups.db"):
+        """Inicializa a conexão com o banco"""
         self.db_path = Path(db_path)
+        self.logger = logging.getLogger(__name__)
+        
+        # Cria tabela se não existir
         self._create_tables()
         
     def _create_tables(self):
-        """Cria as tabelas necessárias se não existirem"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
+        """Cria tabelas necessárias"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS backups (
+                        name TEXT PRIMARY KEY,
+                        filename TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        size INTEGER NOT NULL,
+                        drive_link TEXT,
+                        password BOOLEAN DEFAULT FALSE
+                    )
+                """)
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Erro ao criar tabela: {str(e)}")
             
-            # Tabela de backups
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS backups (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    source_dir TEXT NOT NULL,
-                    size INTEGER NOT NULL,
-                    created_at TIMESTAMP NOT NULL,
-                    status TEXT NOT NULL
+    def add_backup(self, backup_info: Dict[str, Any]):
+        """Adiciona um novo backup"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO backups
+                    (name, filename, created_at, size, drive_link, password)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        backup_info["name"],
+                        backup_info["filename"],
+                        backup_info["created_at"],
+                        backup_info["size"],
+                        backup_info.get("drive_link"),
+                        backup_info.get("password", False)
+                    )
                 )
-            """)
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Erro ao adicionar backup: {str(e)}")
             
-            conn.commit()
+    def get_backup(self, name: str) -> Optional[Dict[str, Any]]:
+        """Obtém informações de um backup"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT * FROM backups WHERE name = ?",
+                    (name,)
+                )
+                row = cursor.fetchone()
+                
+                if row:
+                    return {
+                        "name": row[0],
+                        "filename": row[1],
+                        "created_at": row[2],
+                        "size": row[3],
+                        "drive_link": row[4],
+                        "password": bool(row[5])
+                    }
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Erro ao obter backup: {str(e)}")
+            return None
             
-    def add_backup(self, backup: Dict[str, Any]) -> int:
-        """
-        Adiciona um novo backup ao banco.
-        
-        Args:
-            backup: Dicionário com informações do backup
+    def list_backups(self) -> List[Dict[str, Any]]:
+        """Lista todos os backups"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM backups ORDER BY created_at DESC")
+                
+                backups = []
+                for row in cursor.fetchall():
+                    backups.append({
+                        "name": row[0],
+                        "filename": row[1],
+                        "created_at": row[2],
+                        "size": row[3],
+                        "drive_link": row[4],
+                        "password": bool(row[5])
+                    })
+                return backups
+                
+        except Exception as e:
+            self.logger.error(f"Erro ao listar backups: {str(e)}")
+            return []
             
-        Returns:
-            int: ID do backup inserido
-        """
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
+    def delete_backup(self, name: str):
+        """Remove um backup do banco"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "DELETE FROM backups WHERE name = ?",
+                    (name,)
+                )
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Erro ao remover backup: {str(e)}")
             
-            cursor.execute("""
-                INSERT INTO backups (name, source_dir, size, created_at, status)
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                backup["name"],
-                backup["source_dir"],
-                backup["size"],
-                backup["created_at"],
-                backup["status"]
-            ))
+    def update_backup(self, name: str, **kwargs):
+        """Atualiza informações de um backup"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # Monta query dinâmica
+                fields = []
+                values = []
+                for key, value in kwargs.items():
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+                    
+                if not fields:
+                    return
+                    
+                query = f"UPDATE backups SET {', '.join(fields)} WHERE name = ?"
+                values.append(name)
+                
+                cursor.execute(query, values)
+                conn.commit()
+                
+        except Exception as e:
+            self.logger.error(f"Erro ao atualizar backup: {str(e)}")
             
-            conn.commit()
-            return cursor.lastrowid
-            
-    def get_all_backups(self) -> List[Dict[str, Any]]:
-        """
-        Retorna todos os backups registrados.
-        
-        Returns:
-            list: Lista de dicionários com informações dos backups
-        """
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT * FROM backups ORDER BY created_at DESC")
-            
-            return [{
-                "id": row["id"],
-                "name": row["name"],
-                "source_dir": row["source_dir"],
-                "size": row["size"],
-                "created_at": row["created_at"],
-                "status": row["status"]
-            } for row in cursor.fetchall()]
-            
-    def delete_backup(self, backup_id: int) -> bool:
-        """
-        Remove um backup do banco.
-        
-        Args:
-            backup_id: ID do backup a ser removido
-            
-        Returns:
-            bool: True se removido com sucesso
-        """
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("DELETE FROM backups WHERE id = ?", (backup_id,))
-            conn.commit()
-            
-            return cursor.rowcount > 0
-            
-    def update_backup_status(self, backup_id: int, status: str) -> bool:
-        """
-        Atualiza o status de um backup.
-        
-        Args:
-            backup_id: ID do backup
-            status: Novo status
-            
-        Returns:
-            bool: True se atualizado com sucesso
-        """
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                UPDATE backups
-                SET status = ?
-                WHERE id = ?
-            """, (status, backup_id))
-            
-            conn.commit()
-            return cursor.rowcount > 0 
+    def clear(self):
+        """Remove todos os backups"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM backups")
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Erro ao limpar banco: {str(e)}") 

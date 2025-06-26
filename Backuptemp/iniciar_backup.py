@@ -1,16 +1,15 @@
 import tkinter as tk
 from tkinter import ttk
-import sys
-from pathlib import Path
 import logging
+import sys
 import os
+from pathlib import Path
 import traceback
-from backup_tab import BackupTab
 
-# Adiciona o diretório atual ao path
+# Adiciona o diretório do sistema ao path
 current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
+backup_system_dir = os.path.join(current_dir, "backup_system")
+sys.path.append(backup_system_dir)
 
 def main():
     # Configura logging
@@ -31,8 +30,7 @@ def main():
     try:
         # Importa módulos
         logger.info("Importando módulos...")
-        from backup_manager import BackupManager
-        logger.info("Módulos importados com sucesso")
+        from backup_system.backup_tab import BackupTab
         
         # Cria janela principal
         logger.info("Criando janela principal...")
@@ -42,7 +40,7 @@ def main():
         
         # Tenta carregar ícone
         try:
-            icon_path = Path("icons/save.ico")
+            icon_path = Path(backup_system_dir) / "icons" / "save.ico"
             root.iconbitmap(str(icon_path))
         except Exception as e:
             logger.warning(f"Arquivo de ícone não encontrado: {icon_path}")
@@ -54,7 +52,6 @@ def main():
         
         # Cria interface
         logger.info("Criando interface...")
-        backup_manager = BackupManager()
         backup_tab = BackupTab(root)
         backup_tab.pack(fill=tk.BOTH, expand=True)
         
