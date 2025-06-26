@@ -1,0 +1,30 @@
+# Sistema RAG com LangChain - Substituição do TensorFlow
+# Dependências principais
+langchain>=0.1.0
+langchain-community>=0.0.10
+langchain-openai>=0.0.5
+
+# Embeddings e vectorstore
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.4
+transformers>=4.21.0
+
+# Processamento de documentos
+PyPDF2>=3.0.0
+pypdf>=3.17.0
+
+# APIs e integrações
+openai>=1.0.0
+requests>=2.31.0
+
+# Interface e utilidades
+numpy>=1.24.0
+pandas>=2.0.0
+tqdm>=4.65.0
+
+# Opcional - para GPUs
+# faiss-gpu>=1.7.4  # Descomente se tiver GPU compatível
+
+# Desenvolvimento e testes
+pytest>=7.4.0
+python-dotenv>=1.0.0 

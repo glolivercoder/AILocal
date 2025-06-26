@@ -1,0 +1,57 @@
+[
+  {
+    "timestamp": "2025-06-25T22:28:57.797446",
+    "filename": "backup_20250625_222857.zip",
+    "path": "backups\\backup_20250625_222857.zip",
+    "password": "DG%z9Dm(]>ht6q7Y",
+    "description": "Backup de aplicativos funcionais para teste em Smartphones Android ",
+    "size": 46048898,
+    "google_drive_id": null,
+    "google_drive_link": null,
+    "status": "success"
+  },
+  {
+    "timestamp": "2025-06-25T22:31:20.060403",
+    "filename": "backup_20250625_223120.zip",
+    "path": "backups\\backup_20250625_223120.zip",
+    "password": "QC9OI0?L&kB=Yd3M",
+    "description": "Backup de aplicativos funcionais para teste em Smartphones Android ",
+    "size": 46048898,
+    "google_drive_id": null,
+    "google_drive_link": null,
+    "status": "success"
+  },
+  {
+    "timestamp": "2025-06-25T23:27:42.224935",
+    "filename": "APIs_20250625_232742.zip",
+    "path": "backups\\APIs_20250625_232742.zip",
+    "password": "}%5]2(QLk+zr~Nsr",
+    "description": "APIS de Varios Projetos ",
+    "size": 24838,
+    "google_drive_id": "1GX_gYtVx3Z-PmQK_OIL1kUCD-Wm-0UtZ",
+    "google_drive_link": "https://drive.google.com/file/d/1GX_gYtVx3Z-PmQK_OIL1kUCD-Wm-0UtZ/view?usp=drivesdk",
+    "status": "success"
+  },
+  {
+    "timestamp": "2025-06-25T23:54:42.037474",
+    "filename": "APKs_20250625_235442.zip",
+    "path": "backups\\APKs_20250625_235442.zip",
+    "password": "qU,+kINsQS6b2p_0",
+    "description": "APKs funcionais para testes no Android ",
+    "size": 46048898,
+    "google_drive_id": "1eTS9HnszoMuMBT5747KTP-CPApxA2af2",
+    "google_drive_link": "https://drive.google.com/file/d/1eTS9HnszoMuMBT5747KTP-CPApxA2af2/view?usp=drivesdk",
+    "status": "success"
+  },
+  {
+    "timestamp": "2025-06-25T23:58:25.149991",
+    "filename": "BlenderScriptArmario_20250625_235825.zip",
+    "path": "backups\\BlenderScriptArmario_20250625_235825.zip",
+    "password": "nfCbUWQO^zoYrR2`",
+    "description": "APKs funcionais para testes no Android ",
+    "size": 29054410,
+    "google_drive_id": "1OhvzyobBVGHvjtWBZiWPP85mgtTClwV3",
+    "google_drive_link": "https://drive.google.com/file/d/1OhvzyobBVGHvjtWBZiWPP85mgtTClwV3/view?usp=drivesdk",
+    "status": "success"
+  }
+]

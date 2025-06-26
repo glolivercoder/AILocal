@@ -1,0 +1,45 @@
+2025-06-25 19:49:49,865 - INFO - Tentando carregar credenciais do arquivo: service_account_credentials.json
+2025-06-25 19:49:49,900 - INFO - Credenciais carregadas com sucesso
+2025-06-25 19:49:49,900 - DEBUG - Service Account email: aiagentemcp@vivid-apogee-449000-j3.iam.gserviceaccount.com
+2025-06-25 19:49:49,903 - INFO - file_cache is only supported with oauth2client<4.0.0
+2025-06-25 19:49:49,905 - INFO - Servi�o do Drive constru�do com sucesso
+2025-06-25 19:49:49,905 - INFO - Procurando pasta 'AILocalBKPs'
+2025-06-25 19:49:49,908 - DEBUG - URL being requested: GET https://www.googleapis.com/drive/v3/files?q=name%3D%27AILocalBKPs%27+and+mimeType%3D%27application%2Fvnd.google-apps.folder%27+and+trashed%3Dfalse&spaces=drive&fields=files%28id%2C+name%29&alt=json
+2025-06-25 19:49:49,910 - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-06-25 19:49:51,466 - INFO - Pasta encontrada com ID: 1RMxkLxbOBB9-lkB6JfXQ-u0naZQuVQYP
+2025-06-25 19:49:51,466 - INFO - Compartilhando pasta com glolivercoder@gmail.com
+2025-06-25 19:49:51,466 - INFO - Tornando pasta p�blica com link de acesso
+2025-06-25 19:49:51,467 - DEBUG - URL being requested: POST https://www.googleapis.com/drive/v3/files/1RMxkLxbOBB9-lkB6JfXQ-u0naZQuVQYP/permissions?fields=id&alt=json
+2025-06-25 19:49:52,228 - INFO - Compartilhando diretamente com glolivercoder@gmail.com
+2025-06-25 19:49:52,230 - DEBUG - URL being requested: POST https://www.googleapis.com/drive/v3/files/1RMxkLxbOBB9-lkB6JfXQ-u0naZQuVQYP/permissions?fields=id&sendNotificationEmail=true&alt=json
+2025-06-25 19:49:53,492 - DEBUG - URL being requested: GET https://www.googleapis.com/drive/v3/files/1RMxkLxbOBB9-lkB6JfXQ-u0naZQuVQYP/permissions?fields=permissions%28id%2C+emailAddress%2C+role%2C+type%29&alt=json
+2025-06-25 19:49:53,913 - INFO - Permiss�es atuais da pasta:
+2025-06-25 19:49:53,914 - INFO - - Type: anyone, Role: writer, Email: None
+2025-06-25 19:49:53,914 - INFO - - Type: user, Role: writer, Email: glolivercoder@gmail.com
+2025-06-25 19:49:53,914 - INFO - - Type: user, Role: owner, Email: aiagentemcp@vivid-apogee-449000-j3.iam.gserviceaccount.com
+2025-06-25 19:49:53,914 - INFO - Criando arquivo de teste na pasta
+2025-06-25 19:49:53,918 - DEBUG - URL being requested: POST https://www.googleapis.com/upload/drive/v3/files?fields=id%2C+name&alt=json&uploadType=resumable
+2025-06-25 19:49:55,826 - INFO - Arquivo de teste criado com sucesso: teste_acesso.txt (ID: 1oQMhF6nFo68ZXsTuLcarAbI50D--Y43P)
+
+Iniciando configura��o da pasta no Google Drive...
+Os logs detalhados ser�o salvos em 'google_drive_test.log'
+
+
+Pasta 'AILocalBKPs' configurada com sucesso!
+ID da pasta: 1RMxkLxbOBB9-lkB6JfXQ-u0naZQuVQYP
+
+Compartilhando pasta com glolivercoder@gmail.com...
+Pasta compartilhada com sucesso!
+
+Testando acesso � pasta...
+Teste de acesso conclu�do com sucesso!
+
+IMPORTANTE:
+1. A pasta 'AILocalBKPs' foi criada no Google Drive
+2. ID da pasta: 1RMxkLxbOBB9-lkB6JfXQ-u0naZQuVQYP
+3. A pasta foi compartilhada com: glolivercoder@gmail.com
+4. Voc� receber� um email do Google Drive com o link de acesso
+5. Voc� tamb�m pode acessar a pasta pelo link:
+   https://drive.google.com/drive/folders/1RMxkLxbOBB9-lkB6JfXQ-u0naZQuVQYP
+
+Verifique o arquivo 'google_drive_test.log' para mais detalhes

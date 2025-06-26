@@ -1,0 +1,3 @@
+@echo off
+echo Iniciando Sistema de Backup...
+python iniciar_backup.py 

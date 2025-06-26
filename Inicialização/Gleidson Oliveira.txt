@@ -1,0 +1,17 @@
+### 🚀 Como Usar:
+Método 1 - Script Python:
+
+```
+python iniciar_gui.py
+```
+Método 2 - Arquivo Batch:
+
+```
+iniciar_gui.bat
+```
+Método 3 - Direto:
+
+```
+python -c "from ai_agent_gui import main; 
+main()"
+```
