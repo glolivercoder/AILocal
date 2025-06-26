@@ -17,17 +17,43 @@ import logging
 import random
 import string
 from database import BackupDatabase
+import py7zr
+import shutil
+import time
+from typing import Callable, Optional, Dict
+import threading
 
 try:
-    import pyzipper
+    import py7zr
 except ImportError:
-    raise ImportError("Por favor instale o pacote pyzipper: pip install pyzipper")
+    raise ImportError("Por favor instale o pacote py7zr: pip install py7zr")
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DRIVE_FOLDER_NAME = 'AILocalBKPs'
+
+class BackupProgress:
+    """Classe para armazenar informações de progresso do backup"""
+    def __init__(self):
+        self.total_size: int = 0
+        self.processed_size: int = 0
+        self.current_file: str = ""
+        self.start_time: float = time.time()
+        self.speed: float = 0.0  # bytes/segundo
+        self.eta: float = 0.0    # segundos
+        self.percent: float = 0.0
+
+def calculate_directory_size(path: str) -> int:
+    """Calcula o tamanho total de um diretório"""
+    total_size = 0
+    for dirpath, _, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return total_size
 
 class BackupManager:
     """Gerenciador de backup com integração Google Drive e relatórios por email"""
@@ -75,6 +101,42 @@ class BackupManager:
         else:
             logger.error(f"Arquivo de credenciais não encontrado: {self.google_creds_file}")
             self.google_drive_service = None
+        
+        self.progress = BackupProgress()
+        self.progress_callback = None
+
+    def set_progress_callback(self, callback: Callable[[Dict], None]):
+        """Define o callback para atualizações de progresso"""
+        self.progress_callback = callback
+
+    def _update_progress(self, file_path: str, size: int):
+        """Atualiza o progresso do backup e notifica via callback"""
+        self.progress.processed_size += size
+        self.progress.current_file = os.path.basename(file_path)
+        
+        # Calcular velocidade (bytes/segundo)
+        elapsed_time = time.time() - self.progress.start_time
+        if elapsed_time > 0:
+            self.progress.speed = self.progress.processed_size / elapsed_time
+        
+        # Calcular tempo estimado restante
+        if self.progress.speed > 0:
+            remaining_bytes = self.progress.total_size - self.progress.processed_size
+            self.progress.eta = remaining_bytes / self.progress.speed
+        
+        # Calcular porcentagem
+        self.progress.percent = (self.progress.processed_size / self.progress.total_size) * 100
+        
+        # Notificar via callback
+        if self.progress_callback:
+            self.progress_callback({
+                'current_file': self.progress.current_file,
+                'processed_size': self.progress.processed_size,
+                'total_size': self.progress.total_size,
+                'speed': self.progress.speed,
+                'eta': self.progress.eta,
+                'percent': self.progress.percent
+            })
 
     def _init_google_drive(self):
         """Inicializa a conexão com o Google Drive usando Service Account"""
@@ -207,10 +269,10 @@ class BackupManager:
             if config['use_tls']:
                 try:
                     with smtplib.SMTP(config['server'], config['port']) as server:
-                        server.starttls()
-                        server.login(self.email_config['email'], self.email_config['password'])
-                        server.send_message(msg)
-                    return True
+                server.starttls()
+                server.login(self.email_config['email'], self.email_config['password'])
+                server.send_message(msg)
+            return True
                 except Exception as e:
                     logger.warning(f"Falha ao enviar com TLS: {e}")
 
@@ -238,7 +300,7 @@ class BackupManager:
             logger.error(f"Erro ao enviar email: {e}")
             return False
 
-    def create_backup(self, source_path, description=None):
+    def create_backup(self, source_path: str, description: Optional[str] = None) -> Dict:
         """
         Cria um backup do diretório especificado.
         
@@ -249,34 +311,43 @@ class BackupManager:
         Returns:
             dict: Informações do backup criado
         """
+        # Resetar progresso
+        self.progress = BackupProgress()
+        self.progress.total_size = calculate_directory_size(source_path)
+        self.progress.start_time = time.time()
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         source_name = Path(source_path).name
-        zip_name = f"{source_name}_{timestamp}.zip"
-        zip_path = Path(self.default_dir) / "backups" / zip_name
-        zip_path.parent.mkdir(parents=True, exist_ok=True)
+        archive_name = f"{source_name}_{timestamp}.7z"
+        archive_path = Path(self.default_dir) / "backups" / archive_name
+        archive_path.parent.mkdir(parents=True, exist_ok=True)
         
         password = self._generate_password()
         
         try:
-            # Criar backup criptografado
-            with pyzipper.AESZipFile(zip_path, 'w', compression=pyzipper.ZIP_LZMA, encryption=pyzipper.WZ_AES) as zf:
-                zf.setpassword(password.encode('utf-8'))
-                
-                # Adicionar arquivos ao zip
-                for root, _, files in os.walk(source_path):
-                    for file in files:
-                        file_path = Path(root) / file
-                        arcname = file_path.relative_to(source_path)
-                        zf.write(file_path, arcname=str(arcname))
+            # Criar backup criptografado com 7zip
+            filters = [{"id": py7zr.FILTER_LZMA2, "preset": 9}]  # Máxima compressão
             
+            def progress_callback(file_path: str, size: int):
+                self._update_progress(file_path, size)
+            
+            with py7zr.SevenZipFile(archive_path, 'w', password=password, filters=filters) as archive:
+                # Configurar callback de progresso
+                archive.set_encoded_header_mode(True)
+                archive.set_encoded_header_key(password.encode())
+                archive.set_progress_callback(progress_callback)
+                
+                # Adicionar arquivos ao 7z com compressão máxima
+                archive.writeall(source_path, 'root')
+
             # Preparar informações do backup
             backup_info = {
                 'timestamp': datetime.now().isoformat(),
-                'filename': zip_name,
-                'path': str(zip_path),
+                'filename': archive_name,
+                'path': str(archive_path),
                 'password': password,
                 'description': description or f'Backup de {source_name}',
-                'size': zip_path.stat().st_size,
+                'size': archive_path.stat().st_size,
                 'google_drive_id': None,
                 'google_drive_link': None,
                 'status': 'success'
@@ -285,44 +356,24 @@ class BackupManager:
             # Salvar no banco de dados
             self.db.add_backup(backup_info)
             
-            # Tentar fazer upload para o Google Drive
+            # Upload para Google Drive em thread separada
             if self.google_drive_service and self.drive_folder_id:
-                try:
-                    file_metadata = {
-                        'name': zip_name,
-                        'parents': [self.drive_folder_id]
-                    }
-                    media = MediaFileUpload(zip_path, resumable=True)
-                    file = self.google_drive_service.files().create(
-                        body=file_metadata,
-                        media_body=media,
-                        fields='id, webViewLink'
-                    ).execute()
-                    
-                    # Atualizar informações do Drive no banco
-                    self.db.update_drive_info(
-                        backup_info['id'],
-                        file.get('id'),
-                        file.get('webViewLink')
-                    )
-                    
-                    backup_info['google_drive_id'] = file.get('id')
-                    backup_info['google_drive_link'] = file.get('webViewLink')
-                    
-                except Exception as e:
-                    logger.error(f"Erro ao fazer upload para o Google Drive: {e}")
+                thread = threading.Thread(
+                    target=self._upload_to_drive,
+                    args=(backup_info, archive_path)
+                )
+                thread.start()
             
             return backup_info
-            
+
         except Exception as e:
             error_msg = f"Erro ao criar backup: {e}"
             logger.error(error_msg)
             
-            # Registrar falha no banco
             backup_info = {
                 'timestamp': datetime.now().isoformat(),
-                'filename': zip_name,
-                'path': str(zip_path),
+                'filename': archive_name,
+                'path': str(archive_path),
                 'password': password,
                 'description': description,
                 'size': 0,
@@ -333,6 +384,30 @@ class BackupManager:
             self.db.add_backup(backup_info)
             
             raise Exception(error_msg)
+
+    def _upload_to_drive(self, backup_info: Dict, archive_path: Path):
+        """Upload do arquivo para o Google Drive em thread separada"""
+        try:
+            file_metadata = {
+                'name': backup_info['filename'],
+                'parents': [self.drive_folder_id]
+            }
+            media = MediaFileUpload(archive_path, resumable=True)
+            file = self.google_drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id, webViewLink'
+            ).execute()
+            
+            # Atualizar informações do Drive no banco
+            self.db.update_drive_info(
+                backup_info['id'],
+                file.get('id'),
+                file.get('webViewLink')
+            )
+            
+        except Exception as e:
+            logger.error(f"Erro ao fazer upload para o Google Drive: {e}")
 
     def get_backup_history(self):
         """Retorna o histórico de backups"""
@@ -356,7 +431,7 @@ class BackupManager:
         content = f"""
         <h2>Relatório de Backup</h2>
         <p><strong>Data:</strong> {datetime.fromisoformat(backup_info['timestamp']).strftime('%d/%m/%Y %H:%M:%S')}</p>
-        <p><strong>Arquivo:</strong> {backup_info['filename']}</p>
+            <p><strong>Arquivo:</strong> {backup_info['filename']}</p>
         <p><strong>Tamanho:</strong> {backup_info['size'] / 1024 / 1024:.2f} MB</p>
         <p><strong>Status:</strong> {'✅ Sucesso' if backup_info['status'] == 'success' else '❌ Erro'}</p>
         <p><strong>Senha:</strong> {backup_info['password']}</p>
@@ -367,7 +442,7 @@ class BackupManager:
             <p><strong>Link do Google Drive:</strong> 
                <a href="{backup_info['google_drive_link']}">{backup_info['google_drive_link']}</a>
             </p>
-            """
+        """
         
         return self._send_email_report(to_email, subject, content)
 

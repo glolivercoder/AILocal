@@ -6,7 +6,8 @@ Interface gráfica para a aba de backup
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                            QPushButton, QTextEdit, QFileDialog, QMessageBox,
                            QGroupBox, QLineEdit, QProgressBar, QTableWidget,
-                           QTableWidgetItem, QHeaderView, QCheckBox, QInputDialog)
+                           QTableWidgetItem, QHeaderView, QCheckBox, QInputDialog,
+                           QGridLayout)
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont, QIcon
 from datetime import datetime
@@ -159,15 +160,53 @@ class BackupTab(QWidget):
         desc_layout.addWidget(self.description)
         backup_layout.addLayout(desc_layout)
         
-        # Botão de backup
-        self.backup_btn = QPushButton("🔄 Criar Backup")
-        self.backup_btn.clicked.connect(self.create_backup)
-        backup_layout.addWidget(self.backup_btn)
+        # Grupo de Progresso
+        progress_group = QGroupBox("Progresso do Backup")
+        progress_layout = QVBoxLayout()
+        
+        # Arquivo atual
+        current_file_layout = QHBoxLayout()
+        current_file_layout.addWidget(QLabel("Arquivo:"))
+        self.current_file_label = QLabel("")
+        current_file_layout.addWidget(self.current_file_label)
+        progress_layout.addLayout(current_file_layout)
         
         # Barra de progresso
         self.progress = QProgressBar()
         self.progress.setVisible(False)
-        backup_layout.addWidget(self.progress)
+        progress_layout.addWidget(self.progress)
+        
+        # Informações detalhadas
+        details_layout = QGridLayout()
+        
+        # Tamanho processado
+        details_layout.addWidget(QLabel("Processado:"), 0, 0)
+        self.processed_size_label = QLabel("0 MB")
+        details_layout.addWidget(self.processed_size_label, 0, 1)
+        
+        # Tamanho total
+        details_layout.addWidget(QLabel("Total:"), 0, 2)
+        self.total_size_label = QLabel("0 MB")
+        details_layout.addWidget(self.total_size_label, 0, 3)
+        
+        # Velocidade
+        details_layout.addWidget(QLabel("Velocidade:"), 1, 0)
+        self.speed_label = QLabel("0 MB/s")
+        details_layout.addWidget(self.speed_label, 1, 1)
+        
+        # Tempo estimado
+        details_layout.addWidget(QLabel("Tempo restante:"), 1, 2)
+        self.eta_label = QLabel("--:--:--")
+        details_layout.addWidget(self.eta_label, 1, 3)
+        
+        progress_layout.addLayout(details_layout)
+        progress_group.setLayout(progress_layout)
+        backup_layout.addWidget(progress_group)
+        
+        # Botão de backup
+        self.backup_btn = QPushButton("🔄 Criar Backup")
+        self.backup_btn.clicked.connect(self.create_backup)
+        backup_layout.addWidget(self.backup_btn)
         
         backup_group.setLayout(backup_layout)
         layout.addWidget(backup_group)
@@ -186,10 +225,10 @@ class BackupTab(QWidget):
         
         # Tabela de histórico
         self.history_table = QTableWidget()
-        self.history_table.setColumnCount(8)  # Adicionada uma coluna para o botão de relatório
+        self.history_table.setColumnCount(9)  # Adicionada coluna para checkbox
         self.history_table.setHorizontalHeaderLabels([
-            "Data", "Arquivo", "Tamanho", "Status", 
-            "Link Drive", "Senha", "Ações", "Relatório"  # Nova coluna
+            "Selecionar", "Data", "Arquivo", "Tamanho", "Status", 
+            "Link Drive", "Senha", "Ações", "Relatório"
         ])
         self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.history_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -203,10 +242,10 @@ class BackupTab(QWidget):
         self.refresh_btn.clicked.connect(self.refresh_history)
         history_btn_layout.addWidget(self.refresh_btn)
         
-        # Botão de limpar
-        self.clear_btn = QPushButton("🗑️ Limpar")
-        self.clear_btn.clicked.connect(self.clear_history)
-        history_btn_layout.addWidget(self.clear_btn)
+        # Botão de deletar
+        self.delete_btn = QPushButton("🗑️ Delete")
+        self.delete_btn.clicked.connect(self.delete_selected)
+        history_btn_layout.addWidget(self.delete_btn)
         
         # Botão de enviar relatório geral
         self.send_report_btn = QPushButton("📧 Enviar Relatório Geral")
@@ -309,6 +348,37 @@ class BackupTab(QWidget):
             if self.backup_manager:
                 self.backup_manager.default_dir = path
     
+    def update_progress(self, progress_info):
+        """Atualiza a interface com informações de progresso"""
+        # Mostrar barra de progresso
+        self.progress.setVisible(True)
+        
+        # Atualizar arquivo atual
+        self.current_file_label.setText(progress_info['current_file'])
+        
+        # Atualizar barra de progresso
+        self.progress.setValue(int(progress_info['percent']))
+        
+        # Atualizar tamanhos
+        processed_mb = progress_info['processed_size'] / 1024 / 1024
+        total_mb = progress_info['total_size'] / 1024 / 1024
+        self.processed_size_label.setText(f"{processed_mb:.1f} MB")
+        self.total_size_label.setText(f"{total_mb:.1f} MB")
+        
+        # Atualizar velocidade
+        speed_mb = progress_info['speed'] / 1024 / 1024
+        self.speed_label.setText(f"{speed_mb:.1f} MB/s")
+        
+        # Atualizar tempo estimado
+        eta_seconds = int(progress_info['eta'])
+        hours = eta_seconds // 3600
+        minutes = (eta_seconds % 3600) // 60
+        seconds = eta_seconds % 60
+        self.eta_label.setText(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+        
+        # Forçar atualização da interface
+        QApplication.processEvents()
+
     def create_backup(self):
         """Cria um novo backup"""
         if not self.backup_manager:
@@ -320,8 +390,17 @@ class BackupTab(QWidget):
             return
             
         try:
+            # Resetar e mostrar elementos de progresso
             self.progress.setVisible(True)
             self.progress.setValue(0)
+            self.current_file_label.setText("")
+            self.processed_size_label.setText("0 MB")
+            self.total_size_label.setText("0 MB")
+            self.speed_label.setText("0 MB/s")
+            self.eta_label.setText("--:--:--")
+            
+            # Configurar callback de progresso
+            self.backup_manager.set_progress_callback(self.update_progress)
             
             # Criar backup
             backup_info = self.backup_manager.create_backup(
@@ -329,16 +408,12 @@ class BackupTab(QWidget):
                 description=self.description.text()
             )
             
-            self.progress.setValue(50)
-            
             # Enviar email se configurado
             if self.email_input.text():
                 self.backup_manager.send_backup_report(
                     self.email_input.text(),
                     backup_info
                 )
-            
-            self.progress.setValue(100)
             
             # Atualizar histórico
             self.refresh_history()
@@ -351,7 +426,13 @@ class BackupTab(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Erro", f"Erro ao criar backup: {e}")
         finally:
+            # Resetar elementos de progresso
             self.progress.setVisible(False)
+            self.current_file_label.setText("")
+            self.processed_size_label.setText("0 MB")
+            self.total_size_label.setText("0 MB")
+            self.speed_label.setText("0 MB/s")
+            self.eta_label.setText("--:--:--")
     
     def send_general_report(self):
         """Envia relatório geral por email"""
@@ -474,20 +555,29 @@ class BackupTab(QWidget):
                 row = self.history_table.rowCount()
                 self.history_table.insertRow(row)
                 
+                # Checkbox
+                checkbox = QCheckBox()
+                checkbox_widget = QWidget()
+                checkbox_layout = QHBoxLayout(checkbox_widget)
+                checkbox_layout.addWidget(checkbox)
+                checkbox_layout.setAlignment(Qt.AlignCenter)
+                checkbox_layout.setContentsMargins(0, 0, 0, 0)
+                self.history_table.setCellWidget(row, 0, checkbox_widget)
+                
                 # Data
                 timestamp = datetime.fromisoformat(backup['timestamp']).strftime('%d/%m/%Y %H:%M:%S')
-                self.history_table.setItem(row, 0, QTableWidgetItem(timestamp))
+                self.history_table.setItem(row, 1, QTableWidgetItem(timestamp))
                 
                 # Arquivo
-                self.history_table.setItem(row, 1, QTableWidgetItem(backup['filename']))
+                self.history_table.setItem(row, 2, QTableWidgetItem(backup['filename']))
                 
                 # Tamanho
                 size_mb = f"{backup['size'] / 1024 / 1024:.2f} MB"
-                self.history_table.setItem(row, 2, QTableWidgetItem(size_mb))
+                self.history_table.setItem(row, 3, QTableWidgetItem(size_mb))
                 
                 # Status
                 status_item = QTableWidgetItem("✅" if backup['status'] == 'success' else "❌")
-                self.history_table.setItem(row, 3, status_item)
+                self.history_table.setItem(row, 4, status_item)
                 
                 # Link Drive
                 if backup['google_drive_link']:
@@ -496,9 +586,9 @@ class BackupTab(QWidget):
                         lambda checked, link=backup['google_drive_link']: 
                         QDesktopServices.openUrl(QUrl(link))
                     )
-                    self.history_table.setCellWidget(row, 4, link_btn)
+                    self.history_table.setCellWidget(row, 5, link_btn)
                 else:
-                    self.history_table.setItem(row, 4, QTableWidgetItem("N/A"))
+                    self.history_table.setItem(row, 5, QTableWidgetItem("N/A"))
                 
                 # Senha
                 password_btn = QPushButton("📋 Copiar")
@@ -506,7 +596,7 @@ class BackupTab(QWidget):
                     lambda checked, pwd=backup['password']: 
                     QApplication.clipboard().setText(pwd)
                 )
-                self.history_table.setCellWidget(row, 5, password_btn)
+                self.history_table.setCellWidget(row, 6, password_btn)
                 
                 # Ações
                 actions_widget = QWidget()
@@ -521,7 +611,7 @@ class BackupTab(QWidget):
                 )
                 actions_layout.addWidget(open_dir_btn)
                 
-                self.history_table.setCellWidget(row, 6, actions_widget)
+                self.history_table.setCellWidget(row, 7, actions_widget)
                 
                 # Botão de relatório
                 report_btn = QPushButton("📧")
@@ -530,7 +620,7 @@ class BackupTab(QWidget):
                     lambda checked, info=backup: 
                     self.send_backup_report(info)
                 )
-                self.history_table.setCellWidget(row, 7, report_btn)
+                self.history_table.setCellWidget(row, 8, report_btn)
                 
         except Exception as e:
             QMessageBox.critical(self, "Erro", f"Erro ao atualizar histórico: {e}")
@@ -549,25 +639,57 @@ class BackupTab(QWidget):
             
             self.history_table.setRowHidden(row, not show_row)
     
-    def clear_history(self):
-        """Limpa o histórico de backups"""
+    def delete_selected(self):
+        """Deleta os backups selecionados"""
+        if not self.backup_manager:
+            QMessageBox.warning(self, "Aviso", "Configure o gerenciador primeiro!")
+            return
+            
+        # Obter itens selecionados
+        selected_rows = []
+        for row in range(self.history_table.rowCount()):
+            checkbox_widget = self.history_table.cellWidget(row, 0)
+            if checkbox_widget and checkbox_widget.findChild(QCheckBox).isChecked():
+                selected_rows.append(row)
+        
+        if not selected_rows:
+            QMessageBox.warning(self, "Aviso", "Selecione pelo menos um backup para deletar.")
+            return
+        
+        # Confirmar exclusão
         reply = QMessageBox.question(
-            self, 
-            "Limpar Histórico",
-            "Tem certeza que deseja limpar o histórico? Esta ação não pode ser desfeita.",
+            self,
+            "Confirmar Exclusão",
+            f"Tem certeza que deseja deletar {len(selected_rows)} backup(s)?\nEsta ação não pode ser desfeita.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         
         if reply == QMessageBox.Yes:
             try:
-                # Limpar tabela
-                self.history_table.setRowCount(0)
+                for row in reversed(selected_rows):  # Deletar de trás para frente para não afetar os índices
+                    # Obter informações do backup
+                    filename_item = self.history_table.item(row, 2)
+                    if not filename_item:
+                        continue
+                        
+                    filename = filename_item.text()
+                    if not filename:
+                        continue
+                    
+                    # Deletar arquivo físico
+                    if self.backup_manager.default_dir:
+                        backup_path = os.path.join(self.backup_manager.default_dir, "backups", filename)
+                        if os.path.exists(backup_path):
+                            os.remove(backup_path)
+                    
+                    # Remover do banco de dados
+                    if self.backup_manager.db:
+                        self.backup_manager.db.delete_backup_by_filename(filename)
+                    
+                    # Remover da tabela
+                    self.history_table.removeRow(row)
                 
-                # Limpar banco de dados
-                if self.backup_manager:
-                    self.backup_manager.db.clear_history()
-                
-                QMessageBox.information(self, "Sucesso", "Histórico limpo com sucesso!")
+                QMessageBox.information(self, "Sucesso", "Backups deletados com sucesso!")
             except Exception as e:
-                QMessageBox.critical(self, "Erro", f"Erro ao limpar histórico: {e}") 
+                QMessageBox.critical(self, "Erro", f"Erro ao deletar backups: {e}") 
